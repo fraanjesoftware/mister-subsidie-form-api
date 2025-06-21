@@ -1,6 +1,7 @@
 const { fillDeMinimisForm } = require('./fill-de-minimis');
 const { fillMachtigingsformulier } = require('./fill-machtiging');
 const { fillMKBVerklaring, determineCompanySize } = require('./fill-mkb-verklaring');
+const { fillAndUploadForms } = require('./fill-and-upload');
 
 // Example: Fill all forms
 async function fillForms() {
@@ -71,5 +72,6 @@ module.exports = {
   fillDeMinimisForm, 
   fillMachtigingsformulier, 
   fillMKBVerklaring,
-  determineCompanySize 
+  determineCompanySize,
+  fillAndUploadForms
 };
