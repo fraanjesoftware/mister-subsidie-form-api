@@ -1,7 +1,8 @@
 const { fillDeMinimisForm } = require('./fill-de-minimis');
 const { fillMachtigingsformulier } = require('./fill-machtiging');
+const { fillMKBVerklaring, determineCompanySize } = require('./fill-mkb-verklaring');
 
-// Example: Fill both forms
+// Example: Fill all forms
 async function fillForms() {
   // Fill de-minimis form
   await fillDeMinimisForm({
@@ -42,7 +43,23 @@ async function fillForms() {
     }
   });
   
-  console.log('Both forms filled successfully!');
+  // Fill MKB verklaring with automatic size determination
+  const mkbResult = await fillMKBVerklaring({
+    companyName: 'Your Company B.V.',
+    financialYear: '2024',
+    employees: 45,
+    annualTurnover: 8000000,   // €8 million
+    balanceTotal: 6000000,      // €6 million
+    signerName: 'John Doe',
+    signerPosition: 'Director',
+    dateAndLocation: '21-06-25, Amsterdam',
+    isIndependent: true,
+    hasLargeCompanyOwnership: false,
+    hasPartnerCompanies: false
+  });
+  
+  console.log(`All forms filled successfully!`);
+  console.log(`Company was determined to be: ${mkbResult.companySize.type}`);
 }
 
 // Run if called directly
@@ -50,4 +67,9 @@ if (require.main === module) {
   fillForms().catch(console.error);
 }
 
-module.exports = { fillDeMinimisForm, fillMachtigingsformulier };
+module.exports = { 
+  fillDeMinimisForm, 
+  fillMachtigingsformulier, 
+  fillMKBVerklaring,
+  determineCompanySize 
+};
