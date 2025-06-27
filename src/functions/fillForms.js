@@ -17,8 +17,6 @@ app.http('fillForms', {
         context.log('fillForms function processing request');
         
         let requestBody = null;
-        let tempDir = null;
-        const filesToCleanup = [];
 
         try {
             // Parse request body with better error handling
@@ -103,16 +101,6 @@ app.http('fillForms', {
                 }
             };
 
-            // Create temp directory for PDFs
-            try {
-                tempDir = path.join(process.cwd(), 'temp');
-                await fs.mkdir(tempDir, { recursive: true });
-                context.log('Temp directory created:', tempDir);
-            } catch (dirError) {
-                context.log('ERROR: Failed to create temp directory:', dirError);
-                throw new Error(`Failed to create temp directory: ${dirError.message}`);
-            }
-
             // Check if PDF templates exist
             const pdfTemplatesDir = path.join(__dirname, '../pdfs');
             try {
@@ -127,6 +115,9 @@ app.http('fillForms', {
                 });
             }
 
+            // Array to hold PDFs in memory
+            const pdfFiles = [];
+
             // Fill De-minimis form
             if (requestBody.deMinimis) {
                 try {
@@ -137,15 +128,21 @@ app.http('fillForms', {
                         throw new Error('selectedOption is required (1, 2, or 3)');
                     }
                     
-                    const filename = await fillDeMinimisForm(requestBody.deMinimis, tempDir);
-                    filesToCleanup.push(path.join(tempDir, filename));
+                    // Get PDF bytes without saving to disk
+                    const result = await fillDeMinimisForm(requestBody.deMinimis);
+                    
+                    pdfFiles.push({
+                        filename: result.filename,
+                        pdfBytes: result.pdfBytes,
+                        form: 'de-minimis'
+                    });
                     
                     results.filled.push({
                         form: 'de-minimis',
-                        filename: filename,
+                        filename: result.filename,
                         status: 'success'
                     });
-                    context.log('De-minimis form filled successfully:', filename);
+                    context.log('De-minimis form filled successfully:', result.filename);
                 } catch (error) {
                     context.log('ERROR: Error filling De-minimis form:', error);
                     results.errors.push({
@@ -161,15 +158,21 @@ app.http('fillForms', {
                 try {
                     context.log('Processing Machtigingsformulier with data:', JSON.stringify(requestBody.machtiging));
                     
-                    const filename = await fillMachtigingsformulier(requestBody.machtiging, tempDir);
-                    filesToCleanup.push(path.join(tempDir, filename));
+                    // Get PDF bytes without saving to disk
+                    const result = await fillMachtigingsformulier(requestBody.machtiging);
+                    
+                    pdfFiles.push({
+                        filename: result.filename,
+                        pdfBytes: result.pdfBytes,
+                        form: 'machtiging'
+                    });
                     
                     results.filled.push({
                         form: 'machtiging',
-                        filename: filename,
+                        filename: result.filename,
                         status: 'success'
                     });
-                    context.log('Machtigingsformulier filled successfully:', filename);
+                    context.log('Machtigingsformulier filled successfully:', result.filename);
                 } catch (error) {
                     context.log('ERROR: Error filling Machtigingsformulier:', error);
                     results.errors.push({
@@ -193,8 +196,14 @@ app.http('fillForms', {
                         }
                     }
                     
-                    const result = await fillMKBVerklaring(requestBody.mkbVerklaring, tempDir);
-                    filesToCleanup.push(path.join(tempDir, result.filename));
+                    // Get PDF bytes without saving to disk
+                    const result = await fillMKBVerklaring(requestBody.mkbVerklaring);
+                    
+                    pdfFiles.push({
+                        filename: result.filename,
+                        pdfBytes: result.pdfBytes,
+                        form: 'mkb-verklaring'
+                    });
                     
                     results.filled.push({
                         form: 'mkb-verklaring',
@@ -214,7 +223,7 @@ app.http('fillForms', {
             }
 
             // Upload to Google Drive if requested and forms were filled
-            if (requestBody.uploadToDrive !== false && results.filled.length > 0) {
+            if (requestBody.uploadToDrive !== false && pdfFiles.length > 0) {
                 try {
                     context.log('Attempting Google Drive upload...');
                     
@@ -237,13 +246,11 @@ app.http('fillForms', {
                     const driveService = new GoogleDriveService();
                     await driveService.initialize();
                     
-                    // Get file paths
-                    const filePaths = results.filled.map(f => path.join(tempDir, f.filename));
-                    context.log('Files to upload:', filePaths);
+                    context.log('Uploading PDFs from memory to Google Drive...');
                     
-                    // Upload files
-                    const uploadResult = await driveService.uploadPDFs(
-                        filePaths, 
+                    // Upload files from memory
+                    const uploadResult = await driveService.uploadPDFsFromMemory(
+                        pdfFiles,
                         requestBody.driveFolderName || 'Subsidie Forms'
                     );
                     
@@ -266,21 +273,13 @@ app.http('fillForms', {
                         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
                     });
                 }
-            }
-
-            // Clean up temp files
-            try {
-                context.log('Cleaning up temporary files...');
-                for (const filePath of filesToCleanup) {
-                    try {
-                        await fs.unlink(filePath);
-                        context.log('Deleted temp file:', filePath);
-                    } catch (unlinkError) {
-                        context.log('WARNING: Failed to delete temp file:', filePath, unlinkError.message);
-                    }
-                }
-            } catch (error) {
-                context.log('WARNING: Error during cleanup:', error);
+            } else if (requestBody.uploadToDrive === false && pdfFiles.length > 0) {
+                // If upload is disabled, return base64 encoded PDFs
+                results.pdfData = pdfFiles.map(file => ({
+                    form: file.form,
+                    filename: file.filename,
+                    base64: file.pdfBytes.toString('base64')
+                }));
             }
 
             // Prepare response

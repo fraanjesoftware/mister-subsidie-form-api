@@ -153,6 +153,86 @@ class GoogleDriveService {
   }
 
   /**
+   * Upload a PDF from memory to Google Drive
+   */
+  async uploadPDFFromMemory(filename, pdfBytes, folderId = null) {
+    if (!this.drive) await this.initialize();
+    
+    const fileMetadata = {
+      name: filename,
+    };
+    
+    // Use configured folder ID from environment if no folder ID provided
+    if (!folderId && process.env.GOOGLE_DRIVE_FOLDER_ID) {
+      folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    }
+    
+    if (folderId) {
+      fileMetadata.parents = [folderId];
+    }
+    
+    const media = {
+      mimeType: 'application/pdf',
+      body: require('stream').Readable.from(pdfBytes),
+    };
+    
+    try {
+      const response = await this.drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: 'id, name, webViewLink, webContentLink',
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload multiple PDFs from memory to a specific folder
+   */
+  async uploadPDFsFromMemory(pdfFiles, folderName = 'Subsidie Forms') {
+    if (!this.drive) await this.initialize();
+    
+    // Get or create the main folder
+    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || null;
+    const folder = mainFolderId 
+      ? { id: mainFolderId, name: 'Configured Folder' }
+      : await this.getOrCreateFolder(folderName);
+    
+    // Create a subfolder with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const subfolderName = `Forms_${timestamp}`;
+    const subfolder = await this.createFolder(subfolderName, folder.id);
+    
+    const uploadResults = [];
+    
+    for (const pdfFile of pdfFiles) {
+      try {
+        const result = await this.uploadPDFFromMemory(pdfFile.filename, pdfFile.pdfBytes, subfolder.id);
+        uploadResults.push({
+          filename: pdfFile.filename,
+          driveFile: result,
+          success: true,
+        });
+      } catch (error) {
+        uploadResults.push({
+          filename: pdfFile.filename,
+          error: error.message,
+          success: false,
+        });
+      }
+    }
+    
+    return {
+      folder: subfolder,
+      files: uploadResults,
+    };
+  }
+
+  /**
    * Upload multiple PDFs to a specific folder
    */
   async uploadPDFs(filePaths, folderName = 'Subsidie Forms') {

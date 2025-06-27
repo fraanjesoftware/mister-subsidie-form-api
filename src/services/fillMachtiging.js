@@ -2,7 +2,7 @@ const { PDFDocument } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
-async function fillMachtigingsformulier(data, outputDir) {
+async function fillMachtigingsformulier(data, outputDir = null) {
   try {
     // Load the existing PDF
     const pdfPath = path.join(__dirname, '../pdfs/2 Machtigingsformulier leeg.pdf');
@@ -57,10 +57,19 @@ async function fillMachtigingsformulier(data, outputDir) {
     // Save the filled PDF
     const pdfBytes = await pdfDoc.save();
     const outputFileName = `filled-machtiging-${Date.now()}.pdf`;
-    const outputPath = path.join(outputDir, outputFileName);
-    await fs.writeFile(outputPath, pdfBytes);
     
-    return outputFileName;
+    // If outputDir is provided, save to disk (backward compatibility)
+    if (outputDir) {
+      const outputPath = path.join(outputDir, outputFileName);
+      await fs.writeFile(outputPath, pdfBytes);
+      return outputFileName;
+    }
+    
+    // Otherwise return the PDF bytes and filename
+    return {
+      filename: outputFileName,
+      pdfBytes: pdfBytes
+    };
     
   } catch (error) {
     throw new Error(`Error filling Machtigingsformulier: ${error.message}`);

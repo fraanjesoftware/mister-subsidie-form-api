@@ -2,7 +2,7 @@ const { PDFDocument } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
-async function fillDeMinimisForm(data, outputDir) {
+async function fillDeMinimisForm(data, outputDir = null) {
   try {
     // Load the existing PDF from the pdfs directory
     const pdfPath = path.join(__dirname, '../pdfs/1 de-minimisverklaring.pdf');
@@ -69,10 +69,19 @@ async function fillDeMinimisForm(data, outputDir) {
     // Save the filled PDF
     const pdfBytes = await pdfDoc.save();
     const outputFileName = `filled-de-minimis-${Date.now()}.pdf`;
-    const outputPath = path.join(outputDir, outputFileName);
-    await fs.writeFile(outputPath, pdfBytes);
     
-    return outputFileName;
+    // If outputDir is provided, save to disk (backward compatibility)
+    if (outputDir) {
+      const outputPath = path.join(outputDir, outputFileName);
+      await fs.writeFile(outputPath, pdfBytes);
+      return outputFileName;
+    }
+    
+    // Otherwise return the PDF bytes and filename
+    return {
+      filename: outputFileName,
+      pdfBytes: pdfBytes
+    };
     
   } catch (error) {
     throw new Error(`Error filling De-minimis PDF: ${error.message}`);

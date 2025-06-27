@@ -64,7 +64,7 @@ function determineCompanySize(employees, turnover, balanceTotal, isIndependent =
   };
 }
 
-async function fillMKBVerklaring(data, outputDir) {
+async function fillMKBVerklaring(data, outputDir = null) {
   try {
     // Determine company size automatically
     const companySize = determineCompanySize(
@@ -149,11 +149,21 @@ async function fillMKBVerklaring(data, outputDir) {
     // Save the filled PDF
     const pdfBytes = await pdfDoc.save();
     const outputFileName = `filled-mkb-verklaring-${Date.now()}.pdf`;
-    const outputPath = path.join(outputDir, outputFileName);
-    await fs.writeFile(outputPath, pdfBytes);
     
+    // If outputDir is provided, save to disk (backward compatibility)
+    if (outputDir) {
+      const outputPath = path.join(outputDir, outputFileName);
+      await fs.writeFile(outputPath, pdfBytes);
+      return {
+        filename: outputFileName,
+        companySize: companySize
+      };
+    }
+    
+    // Otherwise return the PDF bytes and filename
     return {
       filename: outputFileName,
+      pdfBytes: pdfBytes,
       companySize: companySize
     };
     
