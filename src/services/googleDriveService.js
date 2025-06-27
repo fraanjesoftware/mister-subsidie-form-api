@@ -135,7 +135,7 @@ class GoogleDriveService {
     const fileContent = await fs.readFile(filePath);
     const media = {
       mimeType: 'application/pdf',
-      body: require('stream').Readable.from(fileContent),
+      body: require('stream').Readable.from(Buffer.from(fileContent)),
     };
     
     try {
@@ -173,7 +173,7 @@ class GoogleDriveService {
     
     const media = {
       mimeType: 'application/pdf',
-      body: require('stream').Readable.from(pdfBytes),
+      body: require('stream').Readable.from(Buffer.from(pdfBytes)),
     };
     
     try {
