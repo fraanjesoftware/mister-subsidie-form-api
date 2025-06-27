@@ -13,3 +13,5 @@ filled-*.pdf
 
 # OS files
 .DS_Store
+
+credentials.json

@@ -4,7 +4,9 @@ const { google } = require('googleapis');
 
 class GoogleDriveService {
   constructor() {
-    this.SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+    // Use 'drive' scope to access shared folders and files
+    // 'drive.file' only allows access to files created by this app
+    this.SCOPES = ['https://www.googleapis.com/auth/drive'];
     this.drive = null;
   }
 
