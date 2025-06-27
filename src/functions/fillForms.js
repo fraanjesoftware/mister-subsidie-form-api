@@ -26,7 +26,7 @@ app.http('fillForms', {
                 requestBody = await request.json();
                 context.log('Request body received:', JSON.stringify(requestBody, null, 2));
             } catch (parseError) {
-                context.log.error('Failed to parse request body:', parseError);
+                context.log('ERROR: Failed to parse request body:', parseError);
                 return {
                     status: 400,
                     body: JSON.stringify({
@@ -109,7 +109,7 @@ app.http('fillForms', {
                 await fs.mkdir(tempDir, { recursive: true });
                 context.log('Temp directory created:', tempDir);
             } catch (dirError) {
-                context.log.error('Failed to create temp directory:', dirError);
+                context.log('ERROR: Failed to create temp directory:', dirError);
                 throw new Error(`Failed to create temp directory: ${dirError.message}`);
             }
 
@@ -119,7 +119,7 @@ app.http('fillForms', {
                 await fs.access(pdfTemplatesDir);
                 context.log('PDF templates directory found:', pdfTemplatesDir);
             } catch (accessError) {
-                context.log.error('PDF templates directory not found:', pdfTemplatesDir);
+                context.log('ERROR: PDF templates directory not found:', pdfTemplatesDir);
                 results.errors.push({
                     form: 'system',
                     error: 'PDF templates directory not found',
@@ -147,7 +147,7 @@ app.http('fillForms', {
                     });
                     context.log('De-minimis form filled successfully:', filename);
                 } catch (error) {
-                    context.log.error('Error filling De-minimis form:', error);
+                    context.log('ERROR: Error filling De-minimis form:', error);
                     results.errors.push({
                         form: 'de-minimis',
                         error: error.message,
@@ -171,7 +171,7 @@ app.http('fillForms', {
                     });
                     context.log('Machtigingsformulier filled successfully:', filename);
                 } catch (error) {
-                    context.log.error('Error filling Machtigingsformulier:', error);
+                    context.log('ERROR: Error filling Machtigingsformulier:', error);
                     results.errors.push({
                         form: 'machtiging',
                         error: error.message,
@@ -204,7 +204,7 @@ app.http('fillForms', {
                     });
                     context.log('MKB Verklaring filled successfully:', result.filename);
                 } catch (error) {
-                    context.log.error('Error filling MKB Verklaring:', error);
+                    context.log('ERROR: Error filling MKB Verklaring:', error);
                     results.errors.push({
                         form: 'mkb-verklaring',
                         error: error.message,
@@ -258,7 +258,7 @@ app.http('fillForms', {
                     };
                     context.log('Google Drive upload completed successfully');
                 } catch (error) {
-                    context.log.error('Error uploading to Google Drive:', error);
+                    context.log('ERROR: Error uploading to Google Drive:', error);
                     results.errors.push({
                         form: 'google-drive',
                         error: error.message,
@@ -276,11 +276,11 @@ app.http('fillForms', {
                         await fs.unlink(filePath);
                         context.log('Deleted temp file:', filePath);
                     } catch (unlinkError) {
-                        context.log.warn('Failed to delete temp file:', filePath, unlinkError.message);
+                        context.log('WARNING: Failed to delete temp file:', filePath, unlinkError.message);
                     }
                 }
             } catch (error) {
-                context.log.warn('Error during cleanup:', error);
+                context.log('WARNING: Error during cleanup:', error);
             }
 
             // Prepare response
@@ -310,7 +310,7 @@ app.http('fillForms', {
 
         } catch (error) {
             // Log full error details
-            context.log.error('Unhandled error in fillForms function:', {
+            context.log('ERROR: Unhandled error in fillForms function:', {
                 message: error.message,
                 stack: error.stack,
                 name: error.name,
