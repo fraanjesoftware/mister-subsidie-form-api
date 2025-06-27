@@ -1,0 +1,52 @@
+{
+  "deMinimis": {
+    "selectedOption": 1,
+    "generalData": {
+      "companyName": "Test Company B.V.",
+      "kvkNumber": "12345678",
+      "street": "Teststraat",
+      "houseNumber": "123",
+      "city": "Amsterdam",
+      "postalCode": "1234AB",
+      "signerName": "Test User",
+      "date": "21-06-25"
+    }
+  },
+  "machtiging": {
+    "applicantData": {
+      "companyName": "Test Company B.V.",
+      "email": "test@company.nl",
+      "kvkNumber": "12345678",
+      "contactPerson": "Test User",
+      "contactEmail": "test.user@company.nl",
+      "position": "Director",
+      "phoneNumber": "0612345678",
+      "date": "21-06-25"
+    },
+    "representativeData": {
+      "companyName": "Test Advisor B.V.",
+      "contactPerson": "Test Advisor",
+      "email": "advisor@test.nl",
+      "signDate1": "21-06-25",
+      "name": "Test Advisor",
+      "position": "Senior Consultant",
+      "phoneNumber": "0687654321",
+      "signDate2": "21-06-25"
+    }
+  },
+  "mkbVerklaring": {
+    "companyName": "Test Company B.V.",
+    "financialYear": "2024",
+    "employees": 35,
+    "annualTurnover": 7500000,
+    "balanceTotal": 5000000,
+    "signerName": "Test User",
+    "signerPosition": "Director",
+    "dateAndLocation": "21-06-25, Amsterdam",
+    "isIndependent": true,
+    "hasLargeCompanyOwnership": false,
+    "hasPartnerCompanies": false
+  },
+  "uploadToDrive": false,
+  "driveFolderName": "Test Subsidie Forms"
+}

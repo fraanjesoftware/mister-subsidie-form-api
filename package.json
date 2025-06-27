@@ -1,0 +1,19 @@
+{
+  "name": "mister-subsidie-form-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@azure/functions": "^4.7.3-beta.0",
+    "@google-cloud/local-auth": "^3.0.1",
+    "googleapis": "^150.0.1",
+    "pdf-lib": "^1.17.1"
+  }
+}

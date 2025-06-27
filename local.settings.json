@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "GOOGLE_CREDENTIALS": "",
+    "GOOGLE_DRIVE_FOLDER_ID": ""
+  }
+}

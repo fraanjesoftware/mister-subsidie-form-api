@@ -1,0 +1,15 @@
+node_modules
+.claude
+
+# Google Drive credentials
+credentials.json
+token.json
+
+# Generated PDFs
+filled-*.pdf
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store

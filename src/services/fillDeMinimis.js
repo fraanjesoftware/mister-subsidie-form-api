@@ -1,0 +1,82 @@
+const { PDFDocument } = require('pdf-lib');
+const fs = require('fs').promises;
+const path = require('path');
+
+async function fillDeMinimisForm(data, outputDir) {
+  try {
+    // Load the existing PDF from the pdfs directory
+    const pdfPath = path.join(__dirname, '../pdfs/1 de-minimisverklaring.pdf');
+    const existingPdfBytes = await fs.readFile(pdfPath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    
+    // Get the form
+    const form = pdfDoc.getForm();
+    
+    // Get fields
+    const radioGroup = form.getRadioGroup('1.1');
+    const field_1_2 = form.getTextField('1.2');
+    const field_1_3 = form.getTextField('1.3');
+    const field_1_4 = form.getTextField('1.4');
+    const field_2_1 = form.getTextField('2.1');
+    const field_2_2 = form.getTextField('2.2');
+    const field_2_3 = form.getTextField('2.3');
+    const field_2_4 = form.getTextField('2.4');
+    const field_2_5 = form.getTextField('2.5');
+    const field_2_6_PC = form.getTextField('2.6_PC');
+    const field_2_7 = form.getTextField('2.7');
+    const field_2_8_DAT1 = form.getTextField('2.8_DAT1');
+    
+    // Conditional logic based on the selected option
+    switch (data.selectedOption) {
+      case 1: // Geen de-minimissteun is verleend
+        radioGroup.select('Geen de-minimissteun is verleend');
+        break;
+        
+      case 2: // Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden
+        radioGroup.select('Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden');
+        if (data.option2Data) {
+          field_1_2.setText(data.option2Data.field_1_2 || '');
+          field_1_3.setText(data.option2Data.field_1_3 || '');
+          field_1_4.setText(data.option2Data.field_1_4 || '');
+        }
+        break;
+        
+      case 3: // al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten
+        radioGroup.select('al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten');
+        if (data.option3Data) {
+          field_1_2.setText(data.option3Data.field_1_2 || '');
+          field_1_3.setText(data.option3Data.field_1_3 || '');
+          field_1_4.setText(data.option3Data.field_1_4 || '');
+        }
+        break;
+        
+      default:
+        throw new Error('Invalid option selected. Please choose 1, 2, or 3.');
+    }
+    
+    // Fill the section below checkboxes (always filled)
+    if (data.generalData) {
+      field_2_1.setText(data.generalData.companyName || '');
+      field_2_2.setText(data.generalData.kvkNumber || '');
+      field_2_3.setText(data.generalData.street || '');
+      field_2_4.setText(data.generalData.houseNumber || '');
+      field_2_5.setText(data.generalData.city || '');
+      field_2_6_PC.setText(data.generalData.postalCode || ''); // Max 6 chars
+      field_2_7.setText(data.generalData.signerName || '');
+      field_2_8_DAT1.setText(data.generalData.date || ''); // Max 8 chars (DD-MM-YY)
+    }
+    
+    // Save the filled PDF
+    const pdfBytes = await pdfDoc.save();
+    const outputFileName = `filled-de-minimis-${Date.now()}.pdf`;
+    const outputPath = path.join(outputDir, outputFileName);
+    await fs.writeFile(outputPath, pdfBytes);
+    
+    return outputFileName;
+    
+  } catch (error) {
+    throw new Error(`Error filling De-minimis PDF: ${error.message}`);
+  }
+}
+
+module.exports = { fillDeMinimisForm };
