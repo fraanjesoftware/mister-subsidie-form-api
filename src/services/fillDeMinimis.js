@@ -1,4 +1,4 @@
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, rgb } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -64,6 +64,32 @@ async function fillDeMinimisForm(data, outputDir = null) {
       field_2_6_PC.setText(data.generalData.postalCode || ''); // Max 6 chars
       field_2_7.setText(data.generalData.signerName || '');
       field_2_8_DAT1.setText(data.generalData.date || ''); // Max 8 chars (DD-MM-YY)
+    }
+    
+    // Add signature anchors if requested
+    if (data.addSignatureAnchors) {
+      const pages = pdfDoc.getPages();
+      const lastPage = pages[pages.length - 1];
+      
+      // Add invisible text for DocuSign anchor
+      // Position near where signature should go (adjust based on your form)
+      const { height } = lastPage.getSize();
+      
+      // Add signature anchor (invisible white text)
+      lastPage.drawText('/sig1/', {
+        x: 100,
+        y: 150, // Adjust based on where signature field should be
+        size: 1,
+        color: rgb(1, 1, 1), // White text (invisible on white background)
+      });
+      
+      // Add date anchor next to signature
+      lastPage.drawText('/date1/', {
+        x: 300,
+        y: 150,
+        size: 1,
+        color: rgb(1, 1, 1),
+      });
     }
     
     // Save the filled PDF

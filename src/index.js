@@ -3,6 +3,8 @@
 
 // Import all function files
 require('./functions/fillForms');
+require('./functions/createSigningSession');
+require('./functions/docusignWebhook');
 
 // You can add more function imports here as you create them
 // require('./functions/anotherFunction');
