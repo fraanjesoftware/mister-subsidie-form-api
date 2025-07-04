@@ -19,9 +19,30 @@ class DocuSignService {
       this.apiClient.setBasePath(this.basePath);
 
       // Configure JWT auth
-      const privateKey = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
-      if (!privateKey) {
+      const privateKeyRaw = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
+      if (!privateKeyRaw) {
         throw new Error('DOCUSIGN_RSA_PRIVATE_KEY environment variable not set');
+      }
+      
+      let privateKey;
+      
+      // Check if it's base64 encoded (no BEGIN RSA header)
+      if (!privateKeyRaw.includes('BEGIN RSA PRIVATE KEY')) {
+        // Decode from base64
+        privateKey = Buffer.from(privateKeyRaw, 'base64').toString('utf-8');
+      } else if (privateKeyRaw.includes('-----BEGIN') && !privateKeyRaw.includes('\n')) {
+        // It's a single line with markers - need to reformat
+        const keyContent = privateKeyRaw
+          .replace('-----BEGIN RSA PRIVATE KEY-----', '')
+          .replace('-----END RSA PRIVATE KEY-----', '')
+          .trim();
+        
+        // Split into 64-character lines
+        const formattedKey = keyContent.match(/.{1,64}/g).join('\n');
+        privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${formattedKey}\n-----END RSA PRIVATE KEY-----`;
+      } else {
+        // Already in proper PEM format
+        privateKey = privateKeyRaw;
       }
 
       const jwtLifeSec = 3600; // 1 hour
