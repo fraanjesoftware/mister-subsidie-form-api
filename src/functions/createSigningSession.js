@@ -201,6 +201,16 @@ app.http('createSigningSession', {
                 context.log('Creating DocuSign envelope...');
                 
                 const docusign = new DocuSignService();
+                
+                // Debug: Check RSA key format
+                const keyDebug = {
+                    hasKey: !!process.env.DOCUSIGN_RSA_PRIVATE_KEY,
+                    keyLength: process.env.DOCUSIGN_RSA_PRIVATE_KEY?.length || 0,
+                    hasBeginMarker: process.env.DOCUSIGN_RSA_PRIVATE_KEY?.includes('BEGIN RSA') || false,
+                    hasNewlines: process.env.DOCUSIGN_RSA_PRIVATE_KEY?.includes('\n') || false
+                };
+                context.log('RSA Key Debug:', keyDebug);
+                
                 await docusign.initialize();
                 
                 // Generate unique client user ID for embedded signing

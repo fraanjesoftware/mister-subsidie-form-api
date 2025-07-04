@@ -19,43 +19,50 @@ class DocuSignService {
       this.apiClient.setBasePath(this.basePath);
 
       // Configure JWT auth
-      const privateKeyRaw = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
-      if (!privateKeyRaw) {
+      let privateKey = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
+      if (!privateKey) {
         throw new Error('DOCUSIGN_RSA_PRIVATE_KEY environment variable not set');
       }
       
-      let privateKey;
-      
-      // Check if it's base64 encoded (no BEGIN RSA header)
-      if (!privateKeyRaw.includes('BEGIN RSA PRIVATE KEY')) {
-        // Decode from base64
-        privateKey = Buffer.from(privateKeyRaw, 'base64').toString('utf-8');
-      } else if (privateKeyRaw.includes('-----BEGIN') && !privateKeyRaw.includes('\n')) {
-        // It's a single line with markers - need to reformat
-        const keyContent = privateKeyRaw
-          .replace('-----BEGIN RSA PRIVATE KEY-----', '')
-          .replace('-----END RSA PRIVATE KEY-----', '')
-          .trim();
+      // The DocuSign SDK expects the private key with proper newlines
+      // If the key is stored as a single line in Azure, we need to fix the format
+      if (privateKey.includes('BEGIN') && !privateKey.includes('\n')) {
+        // Replace spaces that might have been added instead of newlines
+        privateKey = privateKey.replace(/\s+-----BEGIN RSA PRIVATE KEY-----\s+/g, '-----BEGIN RSA PRIVATE KEY-----\n');
+        privateKey = privateKey.replace(/\s+-----END RSA PRIVATE KEY-----\s*/g, '\n-----END RSA PRIVATE KEY-----');
         
-        // Split into 64-character lines
-        const formattedKey = keyContent.match(/.{1,64}/g).join('\n');
-        privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${formattedKey}\n-----END RSA PRIVATE KEY-----`;
-      } else {
-        // Already in proper PEM format
-        privateKey = privateKeyRaw;
+        // Extract the base64 content between the markers
+        const match = privateKey.match(/-----BEGIN RSA PRIVATE KEY-----\n?(.*)-----END RSA PRIVATE KEY-----/);
+        if (match && match[1]) {
+          const base64Content = match[1].replace(/\s+/g, ''); // Remove all whitespace
+          // Split into 64-character lines as required by PEM format
+          const lines = base64Content.match(/.{1,64}/g) || [];
+          privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${lines.join('\n')}\n-----END RSA PRIVATE KEY-----`;
+        }
       }
 
       const jwtLifeSec = 3600; // 1 hour
       const scopes = ['signature', 'impersonation'];
 
       // Get JWT token
-      const results = await this.apiClient.requestJWTUserToken(
-        process.env.DOCUSIGN_INTEGRATION_KEY,
-        process.env.DOCUSIGN_USER_ID,
-        scopes,
-        privateKey,
-        jwtLifeSec
-      );
+      let results;
+      try {
+        results = await this.apiClient.requestJWTUserToken(
+          process.env.DOCUSIGN_INTEGRATION_KEY,
+          process.env.DOCUSIGN_USER_ID,
+          scopes,
+          privateKey,
+          jwtLifeSec
+        );
+      } catch (jwtError) {
+        // Log more details about the error
+        console.error('JWT Token Error:', jwtError.message);
+        console.error('Integration Key exists:', !!process.env.DOCUSIGN_INTEGRATION_KEY);
+        console.error('User ID exists:', !!process.env.DOCUSIGN_USER_ID);
+        console.error('Private key length:', privateKey.length);
+        console.error('Private key has proper markers:', privateKey.includes('BEGIN') && privateKey.includes('END'));
+        throw jwtError;
+      }
 
       const accessToken = results.body.access_token;
 

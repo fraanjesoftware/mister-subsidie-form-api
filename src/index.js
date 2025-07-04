@@ -5,6 +5,7 @@
 require('./functions/fillForms');
 require('./functions/createSigningSession');
 require('./functions/docusignWebhook');
+require('./functions/checkRSAKey');
 
 // You can add more function imports here as you create them
 // require('./functions/anotherFunction');
