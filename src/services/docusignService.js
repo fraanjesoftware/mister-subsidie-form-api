@@ -24,17 +24,18 @@ class DocuSignService {
         throw new Error('DOCUSIGN_RSA_PRIVATE_KEY environment variable not set');
       }
       
-      // The DocuSign SDK expects the private key with proper newlines
-      // If the key is stored as a single line in Azure, we need to fix the format
-      if (privateKey.includes('BEGIN') && !privateKey.includes('\n')) {
-        // Replace spaces that might have been added instead of newlines
-        privateKey = privateKey.replace(/\s+-----BEGIN RSA PRIVATE KEY-----\s+/g, '-----BEGIN RSA PRIVATE KEY-----\n');
-        privateKey = privateKey.replace(/\s+-----END RSA PRIVATE KEY-----\s*/g, '\n-----END RSA PRIVATE KEY-----');
-        
+      // Handle Azure environment variables where \n is stored as literal string
+      if (privateKey.includes('\\n')) {
+        // Replace literal \n with actual newlines
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
+      
+      // If still a single line, format it properly
+      if (privateKey.includes('BEGIN') && privateKey.split('\n').length < 3) {
         // Extract the base64 content between the markers
-        const match = privateKey.match(/-----BEGIN RSA PRIVATE KEY-----\n?(.*)-----END RSA PRIVATE KEY-----/);
+        const match = privateKey.match(/-----BEGIN RSA PRIVATE KEY-----\s*(.+?)\s*-----END RSA PRIVATE KEY-----/);
         if (match && match[1]) {
-          const base64Content = match[1].replace(/\s+/g, ''); // Remove all whitespace
+          const base64Content = match[1].trim();
           // Split into 64-character lines as required by PEM format
           const lines = base64Content.match(/.{1,64}/g) || [];
           privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${lines.join('\n')}\n-----END RSA PRIVATE KEY-----`;
