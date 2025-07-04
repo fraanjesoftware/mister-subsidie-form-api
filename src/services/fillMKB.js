@@ -156,16 +156,16 @@ async function fillMKBVerklaring(data, outputDir = null) {
       
       // Add signature anchor (invisible white text)
       lastPage.drawText('/sig1/', {
-        x: 100,
-        y: 150, // Adjust based on where signature field should be
+        x: 450,
+        y: 515, // Adjust based on where signature field should be
         size: 1,
         color: rgb(1, 1, 1), // White text (invisible on white background)
       });
       
       // Add date anchor next to signature
       lastPage.drawText('/date1/', {
-        x: 300,
-        y: 150,
+        x: 200,
+        y: 515,
         size: 1,
         color: rgb(1, 1, 1),
       });

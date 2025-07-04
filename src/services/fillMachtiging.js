@@ -57,14 +57,14 @@ async function fillMachtigingsformulier(data, outputDir = null) {
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
       const pages = pdfDoc.getPages();
-      const firstPage = pages[0]; // Machtiging form has signatures on first page
+      const firstPage = pages[1]; // Machtiging form has signatures on first page
       
       // Add invisible text for DocuSign anchor
       const { height } = firstPage.getSize();
       
       // Add first signature anchor for applicant (adjust Y position based on form layout)
       firstPage.drawText('/sig1/', {
-        x: 100,
+        x: 380,
         y: 280, // Adjust based on where applicant signature field should be
         size: 1,
         color: rgb(1, 1, 1), // White text (invisible on white background)
@@ -72,24 +72,24 @@ async function fillMachtigingsformulier(data, outputDir = null) {
       
       // Add date anchor next to first signature
       firstPage.drawText('/date1/', {
-        x: 300,
-        y: 280,
+        x: 190,
+        y: 200,
         size: 1,
         color: rgb(1, 1, 1),
       });
       
       // Add second signature anchor for representative
       firstPage.drawText('/sig2/', {
-        x: 100,
-        y: 100, // Adjust based on where representative signature field should be
+        x: 380,
+        y: 328, // Adjust based on where representative signature field should be
         size: 1,
         color: rgb(1, 1, 1),
       });
       
       // Add date anchor next to second signature
       firstPage.drawText('/date2/', {
-        x: 300,
-        y: 100,
+        x: 190,
+        y: 328,
         size: 1,
         color: rgb(1, 1, 1),
       });
