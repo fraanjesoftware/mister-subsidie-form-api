@@ -1,4 +1,4 @@
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, rgb } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -144,6 +144,31 @@ async function fillMKBVerklaring(data, outputDir = null) {
     
     if (data.hasPartnerCompanies) {
       aggregatedValuesRadio.select('ja');
+    }
+    
+    // Add signature anchors if requested
+    if (data.addSignatureAnchors) {
+      const pages = pdfDoc.getPages();
+      const lastPage = pages[pages.length - 1]; // MKB form typically has signature on last page
+      
+      // Add invisible text for DocuSign anchor
+      const { height } = lastPage.getSize();
+      
+      // Add signature anchor (invisible white text)
+      lastPage.drawText('/sig1/', {
+        x: 100,
+        y: 150, // Adjust based on where signature field should be
+        size: 1,
+        color: rgb(1, 1, 1), // White text (invisible on white background)
+      });
+      
+      // Add date anchor next to signature
+      lastPage.drawText('/date1/', {
+        x: 300,
+        y: 150,
+        size: 1,
+        color: rgb(1, 1, 1),
+      });
     }
     
     // Save the filled PDF

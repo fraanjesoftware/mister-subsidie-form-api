@@ -1,4 +1,4 @@
-const { PDFDocument } = require('pdf-lib');
+const { PDFDocument, rgb } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -52,6 +52,47 @@ async function fillMachtigingsformulier(data, outputDir = null) {
       field_2_6.setText(data.representativeData.position || '');
       field_2_7.setText(data.representativeData.phoneNumber || '');
       field_2_8_1_DAT1.setText(data.representativeData.signDate2 || ''); // Max 8 chars
+    }
+    
+    // Add signature anchors if requested
+    if (data.addSignatureAnchors) {
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0]; // Machtiging form has signatures on first page
+      
+      // Add invisible text for DocuSign anchor
+      const { height } = firstPage.getSize();
+      
+      // Add first signature anchor for applicant (adjust Y position based on form layout)
+      firstPage.drawText('/sig1/', {
+        x: 100,
+        y: 280, // Adjust based on where applicant signature field should be
+        size: 1,
+        color: rgb(1, 1, 1), // White text (invisible on white background)
+      });
+      
+      // Add date anchor next to first signature
+      firstPage.drawText('/date1/', {
+        x: 300,
+        y: 280,
+        size: 1,
+        color: rgb(1, 1, 1),
+      });
+      
+      // Add second signature anchor for representative
+      firstPage.drawText('/sig2/', {
+        x: 100,
+        y: 100, // Adjust based on where representative signature field should be
+        size: 1,
+        color: rgb(1, 1, 1),
+      });
+      
+      // Add date anchor next to second signature
+      firstPage.drawText('/date2/', {
+        x: 300,
+        y: 100,
+        size: 1,
+        color: rgb(1, 1, 1),
+      });
     }
     
     // Save the filled PDF
