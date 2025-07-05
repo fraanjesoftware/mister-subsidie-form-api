@@ -53,17 +53,6 @@ async function fillDeMinimisForm(data, outputDir = null) {
         throw new Error('Invalid option selected. Please choose 1, 2, or 3.');
     }
     
-    // Fill the section below checkboxes (always filled)
-    if (data.generalData) {
-      field_2_1.setText(data.generalData.companyName || '');
-      field_2_2.setText(data.generalData.kvkNumber || '');
-      field_2_3.setText(data.generalData.street || '');
-      field_2_4.setText(data.generalData.houseNumber || '');
-      field_2_5.setText(data.generalData.city || '');
-      field_2_6_PC.setText(data.generalData.postalCode || ''); // Max 6 chars
-      field_2_7.setText(data.generalData.signerName || '');
-      field_2_8_DAT1.setText(data.generalData.date || ''); // Max 8 chars (DD-MM-YY)
-    }
     
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
