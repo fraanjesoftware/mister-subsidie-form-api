@@ -75,20 +75,20 @@ async function fillDeMinimisForm(data, outputDir = null) {
       // Position near where signature should go (adjust based on your form)
       const { height } = lastPage.getSize();
       
-      // Add signature anchor (invisible white text)
+      // Add signature anchor (using very light gray instead of white)
       lastPage.drawText('/sig1/', {
         x: 205,
         y: 765, // Adjust based on where signature field should be
-        size: 1,
-        color: rgb(1, 1, 1), // White text (invisible on white background)
+        size: 6, // Increased size for better detection
+        color: rgb(0.95, 0.95, 0.95), // Very light gray (barely visible)
       });
       
       // Add date anchor next to signature
       lastPage.drawText('/date1/', {
         x: 192,
         y: 730,
-        size: 1,
-        color: rgb(1, 1, 1),
+        size: 6, // Increased size for better detection
+        color: rgb(0.95, 0.95, 0.95), // Very light gray (barely visible)
       });
     }
     
