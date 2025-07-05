@@ -13,8 +13,16 @@ async function fillMachtigingsformulier(data, outputDir = null) {
     const form = pdfDoc.getForm();
     
     // Fill section 1: Applicant/Beneficiary details (only when values exist)
-    // Note: The form only has fields starting from 1.4
     if (data.applicantData) {
+      if (data.applicantData.companyName) {
+        form.getTextField('1.1').setText(data.applicantData.companyName);
+      }
+      if (data.applicantData.email) {
+        form.getTextField('1.2_EM').setText(data.applicantData.email);
+      }
+      if (data.applicantData.kvkNumber) {
+        form.getTextField('1.3_C8').setText(data.applicantData.kvkNumber);
+      }
       if (data.applicantData.contactPerson) {
         form.getTextField('1.4').setText(data.applicantData.contactPerson);
       }
@@ -32,8 +40,33 @@ async function fillMachtigingsformulier(data, outputDir = null) {
       }
     }
     
-    // Fill section 2: Authorized representative details
-    // Note: Section 2 fields don't exist in this PDF, so we skip this section
+    // Fill section 2: Authorized representative details (only when values exist)
+    if (data.representativeData) {
+      if (data.representativeData.companyName) {
+        form.getTextField('2.1').setText(data.representativeData.companyName);
+      }
+      if (data.representativeData.contactPerson) {
+        form.getTextField('2.2').setText(data.representativeData.contactPerson);
+      }
+      if (data.representativeData.email) {
+        form.getTextField('2.3').setText(data.representativeData.email);
+      }
+      if (data.representativeData.signDate1) {
+        form.getTextField('2.4.1_DAT1').setText(data.representativeData.signDate1);
+      }
+      if (data.representativeData.name) {
+        form.getTextField('2.5').setText(data.representativeData.name);
+      }
+      if (data.representativeData.position) {
+        form.getTextField('2.6').setText(data.representativeData.position);
+      }
+      if (data.representativeData.phoneNumber) {
+        form.getTextField('2.7').setText(data.representativeData.phoneNumber);
+      }
+      if (data.representativeData.signDate2) {
+        form.getTextField('2.8.1_DAT1').setText(data.representativeData.signDate2);
+      }
+    }
     
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
