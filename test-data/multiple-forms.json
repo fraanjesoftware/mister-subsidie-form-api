@@ -1,0 +1,43 @@
+{
+  "signer": {
+    "email": "multi-form-test@example.com",
+    "name": "Multi Form Tester"
+  },
+  "forms": [
+    {
+      "formType": "deMinimis",
+      "formData": {
+        "selectedOption": 1,
+        "generalData": {
+          "companyName": "Multi Test Company B.V.",
+          "kvkNumber": "88888888",
+          "street": "Multistraat",
+          "houseNumber": "999",
+          "city": "Rotterdam",
+          "postalCode": "3000AA",
+          "signerName": "Multi Form Tester",
+          "date": "05-07-25"
+        },
+        "addSignatureAnchors": true
+      }
+    },
+    {
+      "formType": "mkb",
+      "formData": {
+        "companyName": "Multi Test Company B.V.",
+        "financialYear": "2024",
+        "employees": 75,
+        "annualTurnover": 12000000,
+        "balanceTotal": 6000000,
+        "signerName": "Multi Form Tester",
+        "signerPosition": "CEO",
+        "dateAndLocation": "Rotterdam, 05-07-2025",
+        "isIndependent": true,
+        "hasLargeCompanyOwnership": false,
+        "hasPartnerCompanies": false,
+        "addSignatureAnchors": true
+      }
+    }
+  ],
+  "returnUrl": "https://example.com/multi-signing-complete"
+}

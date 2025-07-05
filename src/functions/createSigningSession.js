@@ -36,14 +36,16 @@ app.http('createSigningSession', {
                 };
             }
             
-            // Validate form type
-            const validFormTypes = ['deMinimis', 'machtiging', 'mkb'];
-            if (!requestBody.formType || !validFormTypes.includes(requestBody.formType)) {
+            // Check if we're processing multiple forms or a single form
+            const isMultipleForms = requestBody.forms && Array.isArray(requestBody.forms);
+            const isSingleForm = requestBody.formType && requestBody.formData;
+            
+            if (!isMultipleForms && !isSingleForm) {
                 return {
                     status: 400,
                     body: JSON.stringify({
-                        error: 'Invalid form type',
-                        message: `Please provide a valid formType: ${validFormTypes.join(', ')}`
+                        error: 'Invalid request',
+                        message: 'Please provide either "forms" array for multiple forms or "formType" and "formData" for a single form'
                     }),
                     headers: {
                         'Content-Type': 'application/json'
@@ -51,104 +53,194 @@ app.http('createSigningSession', {
                 };
             }
             
-            // Validate form data based on type
-            let validationErrors = [];
-            if (requestBody.formType === 'deMinimis') {
-                validationErrors = validateDeMinimisData(requestBody.formData || {});
-            } else if (requestBody.formType === 'machtiging') {
-                validationErrors = validateMachtigingData(requestBody.formData || {});
-            } else if (requestBody.formType === 'mkb') {
-                validationErrors = validateMKBData(requestBody.formData || {});
-            }
-            
-            if (validationErrors.length > 0) {
-                return {
-                    status: 400,
-                    body: JSON.stringify({
-                        error: 'Invalid form data',
-                        message: 'Form data validation failed',
-                        validationErrors: validationErrors
-                    }),
-                    headers: {
-                        'Content-Type': 'application/json'
+            // Prepare forms array - either from multiple forms or single form
+            let formsToProcess = [];
+            if (isMultipleForms) {
+                // Validate each form in the array
+                const validFormTypes = ['deMinimis', 'machtiging', 'mkb'];
+                for (const [index, form] of requestBody.forms.entries()) {
+                    if (!form.formType || !validFormTypes.includes(form.formType)) {
+                        return {
+                            status: 400,
+                            body: JSON.stringify({
+                                error: 'Invalid form type',
+                                message: `Form at index ${index}: Please provide a valid formType: ${validFormTypes.join(', ')}`
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        };
                     }
-                };
+                    
+                    // Validate form data
+                    let validationErrors = [];
+                    if (form.formType === 'deMinimis') {
+                        validationErrors = validateDeMinimisData(form.formData || {});
+                    } else if (form.formType === 'machtiging') {
+                        validationErrors = validateMachtigingData(form.formData || {});
+                    } else if (form.formType === 'mkb') {
+                        validationErrors = validateMKBData(form.formData || {});
+                    }
+                    
+                    if (validationErrors.length > 0) {
+                        return {
+                            status: 400,
+                            body: JSON.stringify({
+                                error: 'Invalid form data',
+                                message: `Form at index ${index} (${form.formType}): validation failed`,
+                                validationErrors: validationErrors
+                            }),
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        };
+                    }
+                    
+                    formsToProcess.push(form);
+                }
+            } else {
+                // Single form - validate as before
+                const validFormTypes = ['deMinimis', 'machtiging', 'mkb'];
+                if (!requestBody.formType || !validFormTypes.includes(requestBody.formType)) {
+                    return {
+                        status: 400,
+                        body: JSON.stringify({
+                            error: 'Invalid form type',
+                            message: `Please provide a valid formType: ${validFormTypes.join(', ')}`
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    };
+                }
+                
+                let validationErrors = [];
+                if (requestBody.formType === 'deMinimis') {
+                    validationErrors = validateDeMinimisData(requestBody.formData || {});
+                } else if (requestBody.formType === 'machtiging') {
+                    validationErrors = validateMachtigingData(requestBody.formData || {});
+                } else if (requestBody.formType === 'mkb') {
+                    validationErrors = validateMKBData(requestBody.formData || {});
+                }
+                
+                if (validationErrors.length > 0) {
+                    return {
+                        status: 400,
+                        body: JSON.stringify({
+                            error: 'Invalid form data',
+                            message: 'Form data validation failed',
+                            validationErrors: validationErrors
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    };
+                }
+                
+                formsToProcess.push({
+                    formType: requestBody.formType,
+                    formData: requestBody.formData
+                });
             }
             
             // Initialize DocuSign
             const docusign = new DocuSignService();
             await docusign.initialize();
             
-            // Fill the appropriate form based on formType
-            let pdfBase64;
-            let pdfName;
-            let pdfResult;
+            // Process all forms and create documents array
+            const documents = [];
+            const processingResults = [];
             
-            try {
-                context.log(`Processing ${requestBody.formType} form`);
-                
-                switch (requestBody.formType) {
-                    case 'deMinimis':
-                        pdfResult = await fillDeMinimisForm(requestBody.formData);
-                        break;
-                    case 'machtiging':
-                        pdfResult = await fillMachtigingsformulier(requestBody.formData);
-                        break;
-                    case 'mkb':
-                        pdfResult = await fillMKBVerklaring(requestBody.formData);
-                        break;
-                }
-                
-                // Convert Uint8Array to Buffer if needed
-                const pdfBuffer = Buffer.isBuffer(pdfResult.pdfBytes) 
-                    ? pdfResult.pdfBytes 
-                    : Buffer.from(pdfResult.pdfBytes);
-                
-                pdfBase64 = pdfBuffer.toString('base64');
-                pdfName = pdfResult.filename;
-                context.log(`Successfully filled ${requestBody.formType} PDF, size:`, pdfBuffer.length);
-                
-            } catch (error) {
-                context.log(`Failed to fill ${requestBody.formType} PDF:`, error.message);
-                return {
-                    status: 500,
-                    body: JSON.stringify({
-                        error: 'Failed to generate PDF',
-                        message: error.message,
-                        formType: requestBody.formType
-                    }),
-                    headers: {
-                        'Content-Type': 'application/json'
+            for (const [index, form] of formsToProcess.entries()) {
+                try {
+                    context.log(`Processing ${form.formType} form (${index + 1}/${formsToProcess.length})`);
+                    
+                    let pdfResult;
+                    switch (form.formType) {
+                        case 'deMinimis':
+                            pdfResult = await fillDeMinimisForm(form.formData);
+                            break;
+                        case 'machtiging':
+                            pdfResult = await fillMachtigingsformulier(form.formData);
+                            break;
+                        case 'mkb':
+                            pdfResult = await fillMKBVerklaring(form.formData);
+                            break;
                     }
-                };
+                    
+                    // Convert Uint8Array to Buffer if needed
+                    const pdfBuffer = Buffer.isBuffer(pdfResult.pdfBytes) 
+                        ? pdfResult.pdfBytes 
+                        : Buffer.from(pdfResult.pdfBytes);
+                    
+                    const pdfBase64 = pdfBuffer.toString('base64');
+                    context.log(`Successfully filled ${form.formType} PDF, size:`, pdfBuffer.length);
+                    
+                    // Add to documents array with documentId
+                    documents.push({
+                        documentId: String(index + 1),
+                        name: pdfResult.filename,
+                        base64: pdfBase64
+                    });
+                    
+                    processingResults.push({
+                        formType: form.formType,
+                        filename: pdfResult.filename,
+                        companySize: pdfResult.companySize // For MKB forms
+                    });
+                    
+                } catch (error) {
+                    context.log(`Failed to fill ${form.formType} PDF:`, error.message);
+                    return {
+                        status: 500,
+                        body: JSON.stringify({
+                            error: 'Failed to generate PDF',
+                            message: error.message,
+                            formType: form.formType,
+                            formIndex: index
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    };
+                }
             }
             
             // Generate unique client user ID for embedded signing
             const clientUserId = uuidv4();
             
-            // Create documents array - EXACTLY like testMinimalEnvelope
-            const documents = [{
-                name: pdfName,
-                base64: pdfBase64
-            }];
+            // Create signers array with tabs for each document
+            const signatureTabs = [];
+            const dateSignedTabs = [];
             
-            // Create signers array - EXACTLY like testMinimalEnvelope
+            // Check if we should use signature anchors
+            const useAnchors = formsToProcess.some(form => form.formData.addSignatureAnchors);
+            
+            if (!useAnchors) {
+                // Add signature and date tabs for each document
+                documents.forEach((doc, index) => {
+                    signatureTabs.push({
+                        documentId: doc.documentId,
+                        pageNumber: '1',
+                        xPosition: '200',
+                        yPosition: '100'
+                    });
+                    dateSignedTabs.push({
+                        documentId: doc.documentId,
+                        pageNumber: '1',
+                        xPosition: '350',
+                        yPosition: '100'
+                    });
+                });
+            }
+            // If using anchors, leave tabs arrays empty - DocuSign will use anchor tags
+            
             const signers = [{
                 email: requestBody.signer.email,
                 name: requestBody.signer.name,
                 clientUserId: clientUserId,
-                signatureTabs: [{
-                    documentId: '1',
-                    pageNumber: '1',
-                    xPosition: '200',
-                    yPosition: '100'
-                }],
-                dateSignedTabs: [{
-                    documentId: '1',
-                    pageNumber: '1',
-                    xPosition: '350',
-                    yPosition: '100'
-                }]
+                signatureTabs: signatureTabs,
+                dateSignedTabs: dateSignedTabs
             }];
             
             // Create envelope - EXACTLY like testMinimalEnvelope
@@ -182,7 +274,10 @@ app.http('createSigningSession', {
                     envelopeId: envelopeId,
                     signingUrl: signingUrl,
                     expiresIn: 300, // 5 minutes
-                    message: `Signing session created successfully for ${requestBody.formType} form`
+                    message: isMultipleForms 
+                        ? `Signing session created successfully for ${formsToProcess.length} forms`
+                        : `Signing session created successfully for ${formsToProcess[0].formType} form`,
+                    forms: processingResults
                 }),
                 headers: {
                     'Content-Type': 'application/json'
