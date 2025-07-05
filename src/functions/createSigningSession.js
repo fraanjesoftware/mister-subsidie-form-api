@@ -58,10 +58,17 @@ app.http('createSigningSession', {
                 context.log('PDF result type:', typeof result.pdfBytes);
                 context.log('PDF result is Buffer?', Buffer.isBuffer(result.pdfBytes));
                 context.log('PDF result is Uint8Array?', result.pdfBytes instanceof Uint8Array);
-                pdfBase64 = result.pdfBytes.toString('base64');
+                
+                // Convert Uint8Array to Buffer if needed
+                const pdfBuffer = Buffer.isBuffer(result.pdfBytes) 
+                    ? result.pdfBytes 
+                    : Buffer.from(result.pdfBytes);
+                
+                pdfBase64 = pdfBuffer.toString('base64');
                 pdfName = result.filename;
-                context.log('Successfully filled de-minimis PDF, size:', result.pdfBytes.length);
+                context.log('Successfully filled de-minimis PDF, size:', pdfBuffer.length);
                 context.log('Base64 length:', pdfBase64.length);
+                context.log('First 100 chars of base64:', pdfBase64.substring(0, 100));
             } catch (error) {
                 context.log('Failed to fill PDF, using test PDF instead:', error.message);
                 // Fallback to test PDF

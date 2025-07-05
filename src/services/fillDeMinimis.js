@@ -92,8 +92,8 @@ async function fillDeMinimisForm(data, outputDir = null) {
       });
     }
     
-    // Flatten the form before saving (remove form fields, keep only visual content)
-    form.flatten();
+    // TEMPORARILY DISABLE FLATTEN - Testing if this causes DocuSign issues
+    // form.flatten();
     
     // Save the filled PDF
     const pdfBytes = await pdfDoc.save();
