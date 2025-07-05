@@ -399,7 +399,8 @@ class DocuSignService {
     signerEmail: string,
     signerName: string,
     clientUserId: string,
-    returnUrl: string
+    returnUrl: string,
+    forEmbedding: boolean = false
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
@@ -411,8 +412,17 @@ class DocuSignService {
       viewRequest.userName = signerName;
       viewRequest.clientUserId = clientUserId;
       
-      // Note: frameAncestors and messageOrigins are not supported in the older API
-      // CORS must be configured in DocuSign Admin instead
+      // Add frame ancestors and message origins for iframe embedding
+      if (forEmbedding) {
+        // Get allowed origins from environment variables
+        const allowedOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',') || [
+          'http://localhost:5173',
+          'https://purple-dune-0613f4303.1.azurestaticapps.net'
+        ];
+        
+        viewRequest.frameAncestors = allowedOrigins;
+        viewRequest.messageOrigins = allowedOrigins;
+      }
 
       const results = await envelopesApi.createRecipientView(
         this.accountId!,

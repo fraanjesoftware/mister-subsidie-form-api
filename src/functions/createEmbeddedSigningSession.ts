@@ -27,8 +27,6 @@ interface EmbeddedSigningRequest {
   formData?: any;
   forms?: Form[];
   returnUrl: string;
-  frameAncestors?: string[]; // Array of allowed origins for iframe embedding (optional)
-  messageOrigins?: string[]; // Array of allowed origins for postMessage communication (optional)
 }
 
 interface ProcessingResult {
@@ -74,11 +72,6 @@ app.http('createEmbeddedSigningSession', {
             'Access-Control-Allow-Origin': '*'
           }
         };
-      }
-      
-      // frameAncestors is optional for now - DocuSign may not support it in all environments
-      if (requestBody.frameAncestors && requestBody.frameAncestors.length > 0) {
-        context.log('Frame ancestors provided:', requestBody.frameAncestors);
       }
       
       // Check if we're processing multiple forms or a single form
@@ -309,13 +302,14 @@ app.http('createEmbeddedSigningSession', {
       });
       
       context.log('Envelope created:', envelopeId);
-      // Get embedded signing URL
+      // Get embedded signing URL with iframe configuration
       const signingUrl = await docusign.getEmbeddedSigningUrl(
         envelopeId,
         requestBody.signer.email,
         requestBody.signer.name,
         clientUserId,
-        requestBody.returnUrl
+        requestBody.returnUrl,
+        true // forEmbedding = true for iframe support
       );
       
       context.log('Embedded signing URL generated with iframe configuration');
