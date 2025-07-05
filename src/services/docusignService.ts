@@ -420,13 +420,22 @@ class DocuSignService {
           'https://purple-dune-0613f4303.1.azurestaticapps.net'
         ];
         
+        // Determine the primary origin based on environment
+        // In production, use the Azure Static Web App URL; in development, use localhost
+        const primaryOrigin = process.env.NODE_ENV === 'production' 
+          ? 'https://purple-dune-0613f4303.1.azurestaticapps.net'
+          : 'http://localhost:5173';
+        
+        // If a specific primary origin is set in environment variables, use that
+        const messageOrigin = process.env.DOCUSIGN_PRIMARY_ORIGIN || primaryOrigin;
+        
         console.log('Setting iframe embedding configuration:', {
           frameAncestors: allowedOrigins,
-          messageOrigins: allowedOrigins
+          messageOrigins: [messageOrigin] // Only one origin allowed
         });
         
-        viewRequest.frameAncestors = allowedOrigins;
-        viewRequest.messageOrigins = allowedOrigins;
+        viewRequest.frameAncestors = allowedOrigins; // Can have multiple
+        viewRequest.messageOrigins = [messageOrigin]; // Only one allowed
       }
 
       console.log('Creating recipient view with request:', {
