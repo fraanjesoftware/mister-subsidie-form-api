@@ -12,55 +12,66 @@ async function fillMachtigingsformulier(data, outputDir = null) {
     // Get the form
     const form = pdfDoc.getForm();
     
-    // Get all text fields
-    const field_1_1 = form.getTextField('1.1');
-    const field_1_2_EM = form.getTextField('1.2_EM');
-    const field_1_3_C8 = form.getTextField('1.3_C8');
-    const field_1_4 = form.getTextField('1.4');
-    const field_1_5_EM = form.getTextField('1.5_EM');
-    const field_1_6 = form.getTextField('1.6');
-    const field_1_7_TEL = form.getTextField('1.7_TEL');
-    const field_1_8_C8 = form.getTextField('1.8_C8');
-    const field_2_1 = form.getTextField('2.1');
-    const field_2_2 = form.getTextField('2.2');
-    const field_2_3 = form.getTextField('2.3');
-    const field_2_4_1_DAT1 = form.getTextField('2.4.1_DAT1');
-    const field_2_5 = form.getTextField('2.5');
-    const field_2_6 = form.getTextField('2.6');
-    const field_2_7 = form.getTextField('2.7');
-    const field_2_8_1_DAT1 = form.getTextField('2.8.1_DAT1');
-    
-    // Fill section 1: Applicant/Beneficiary details
+    // Fill section 1: Applicant/Beneficiary details (only when values exist)
     if (data.applicantData) {
-      field_1_1.setText(data.applicantData.companyName || '');
-      field_1_2_EM.setText(data.applicantData.email || '');
-      field_1_3_C8.setText(data.applicantData.kvkNumber || ''); // Max 8 chars
-      field_1_4.setText(data.applicantData.contactPerson || '');
-      field_1_5_EM.setText(data.applicantData.contactEmail || '');
-      field_1_6.setText(data.applicantData.position || '');
-      field_1_7_TEL.setText(data.applicantData.phoneNumber || ''); // Max 10 chars
-      field_1_8_C8.setText(data.applicantData.date || ''); // Max 8 chars (DD-MM-YY)
+      if (data.applicantData.companyName) {
+        form.getTextField('1.1').setText(data.applicantData.companyName);
+      }
+      if (data.applicantData.email) {
+        form.getTextField('1.2_EM').setText(data.applicantData.email);
+      }
+      if (data.applicantData.kvkNumber) {
+        form.getTextField('1.3_C8').setText(data.applicantData.kvkNumber);
+      }
+      if (data.applicantData.contactPerson) {
+        form.getTextField('1.4').setText(data.applicantData.contactPerson);
+      }
+      if (data.applicantData.contactEmail) {
+        form.getTextField('1.5_EM').setText(data.applicantData.contactEmail);
+      }
+      if (data.applicantData.position) {
+        form.getTextField('1.6').setText(data.applicantData.position);
+      }
+      if (data.applicantData.phoneNumber) {
+        form.getTextField('1.7_TEL').setText(data.applicantData.phoneNumber);
+      }
+      if (data.applicantData.date) {
+        form.getTextField('1.8_C8').setText(data.applicantData.date);
+      }
     }
     
-    // Fill section 2: Authorized representative details
+    // Fill section 2: Authorized representative details (only when values exist)
     if (data.representativeData) {
-      field_2_1.setText(data.representativeData.companyName || '');
-      field_2_2.setText(data.representativeData.contactPerson || '');
-      field_2_3.setText(data.representativeData.email || '');
-      field_2_4_1_DAT1.setText(data.representativeData.signDate1 || ''); // Max 8 chars
-      field_2_5.setText(data.representativeData.name || '');
-      field_2_6.setText(data.representativeData.position || '');
-      field_2_7.setText(data.representativeData.phoneNumber || '');
-      field_2_8_1_DAT1.setText(data.representativeData.signDate2 || ''); // Max 8 chars
+      if (data.representativeData.companyName) {
+        form.getTextField('2.1').setText(data.representativeData.companyName);
+      }
+      if (data.representativeData.contactPerson) {
+        form.getTextField('2.2').setText(data.representativeData.contactPerson);
+      }
+      if (data.representativeData.email) {
+        form.getTextField('2.3').setText(data.representativeData.email);
+      }
+      if (data.representativeData.signDate1) {
+        form.getTextField('2.4.1_DAT1').setText(data.representativeData.signDate1);
+      }
+      if (data.representativeData.name) {
+        form.getTextField('2.5').setText(data.representativeData.name);
+      }
+      if (data.representativeData.position) {
+        form.getTextField('2.6').setText(data.representativeData.position);
+      }
+      if (data.representativeData.phoneNumber) {
+        form.getTextField('2.7').setText(data.representativeData.phoneNumber);
+      }
+      if (data.representativeData.signDate2) {
+        form.getTextField('2.8.1_DAT1').setText(data.representativeData.signDate2);
+      }
     }
     
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
       const pages = pdfDoc.getPages();
       const firstPage = pages[1]; // Machtiging form has signatures on first page
-      
-      // Add invisible text for DocuSign anchor
-      const { height } = firstPage.getSize();
       
       // Add first signature anchor for applicant (adjust Y position based on form layout)
       firstPage.drawText('/sig1/', {
