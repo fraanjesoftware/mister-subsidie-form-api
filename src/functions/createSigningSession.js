@@ -4,11 +4,9 @@ const DocuSignService = require('../services/docusignService');
 const fs = require('fs').promises;
 const path = require('path');
 const { fillDeMinimisForm } = require('../services/fillDeMinimis');
-const { fillMachtigingsformulier } = require('../services/fillMachtiging');
 const { fillMKBVerklaring } = require('../services/fillMKB');
 const { 
     validateDeMinimisData, 
-    validateMachtigingData, 
     validateMKBData 
 } = require('../models/formModels');
 
@@ -77,7 +75,7 @@ app.http('createSigningSession', {
                     if (form.formType === 'deMinimis') {
                         validationErrors = validateDeMinimisData(form.formData || {});
                     } else if (form.formType === 'machtiging') {
-                        validationErrors = validateMachtigingData(form.formData || {});
+                        // validationErrors = validateMachtigingData(form.formData || {});
                     } else if (form.formType === 'mkb') {
                         validationErrors = validateMKBData(form.formData || {});
                     }
@@ -118,7 +116,7 @@ app.http('createSigningSession', {
                 if (requestBody.formType === 'deMinimis') {
                     validationErrors = validateDeMinimisData(requestBody.formData || {});
                 } else if (requestBody.formType === 'machtiging') {
-                    validationErrors = validateMachtigingData(requestBody.formData || {});
+                    // validationErrors = validateMachtigingData(requestBody.formData || {});
                 } else if (requestBody.formType === 'mkb') {
                     validationErrors = validateMKBData(requestBody.formData || {});
                 }
@@ -161,7 +159,7 @@ app.http('createSigningSession', {
                             pdfResult = await fillDeMinimisForm(form.formData);
                             break;
                         case 'machtiging':
-                            pdfResult = await fillMachtigingsformulier(form.formData);
+                            // pdfResult = await fillMachtigingsformulier(form.formData);
                             break;
                         case 'mkb':
                             pdfResult = await fillMKBVerklaring(form.formData);

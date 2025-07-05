@@ -5,9 +5,6 @@
 require('./functions/fillForms');
 require('./functions/createSigningSession');
 require('./functions/docusignWebhook');
-require('./functions/createDeMinimisSession');
-require('./functions/createMKBSession');
-require('./functions/createMachtigingSession');
 
 
 // You can add more function imports here as you create them

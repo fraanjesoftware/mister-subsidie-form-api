@@ -98,50 +98,6 @@ function validateDeMinimisData(data) {
   return errors;
 }
 
-function validateMachtigingData(data) {
-  const errors = [];
-  
-  // Validate applicant data
-  const requiredApplicant = ['companyName', 'email', 'kvkNumber', 'contactPerson', 'contactEmail', 'position', 'phoneNumber', 'date'];
-  for (const field of requiredApplicant) {
-    if (!data.applicantData[field]) {
-      errors.push(`applicantData.${field} is required`);
-    }
-  }
-  
-  // Validate representative data
-  const requiredRep = ['companyName', 'contactPerson', 'email', 'signDate1', 'name', 'position', 'phoneNumber', 'signDate2'];
-  for (const field of requiredRep) {
-    if (!data.representativeData[field]) {
-      errors.push(`representativeData.${field} is required`);
-    }
-  }
-  
-  // Validate formats
-  if (data.applicantData.kvkNumber && data.applicantData.kvkNumber.length > 8) {
-    errors.push('applicantData.kvkNumber must be max 8 characters');
-  }
-  
-  if (data.applicantData.phoneNumber && data.applicantData.phoneNumber.length > 10) {
-    errors.push('applicantData.phoneNumber must be max 10 characters');
-  }
-  
-  const datePattern = /^\d{2}-\d{2}-\d{2}$/;
-  if (data.applicantData.date && !data.applicantData.date.match(datePattern)) {
-    errors.push('applicantData.date must be in DD-MM-YY format');
-  }
-  
-  if (data.representativeData.signDate1 && !data.representativeData.signDate1.match(datePattern)) {
-    errors.push('representativeData.signDate1 must be in DD-MM-YY format');
-  }
-  
-  if (data.representativeData.signDate2 && !data.representativeData.signDate2.match(datePattern)) {
-    errors.push('representativeData.signDate2 must be in DD-MM-YY format');
-  }
-  
-  return errors;
-}
-
 function validateMKBData(data) {
   const errors = [];
   
@@ -175,9 +131,7 @@ function validateMKBData(data) {
 
 module.exports = {
   DeMinimisFormData,
-  MachtigingFormData,
   MKBFormData,
   validateDeMinimisData,
-  validateMachtigingData,
   validateMKBData
 };
