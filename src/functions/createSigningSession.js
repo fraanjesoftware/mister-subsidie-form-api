@@ -96,13 +96,7 @@ app.http('createSigningSession', {
                 try {
                     context.log('Processing De-minimis form for signing...');
                     
-                    // Add signature anchors
-                    const formData = {
-                        ...requestBody.deMinimis,
-                        addSignatureAnchors: true
-                    };
-                    
-                    const result = await fillDeMinimisForm(formData);
+                    const result = await fillDeMinimisForm(requestBody.deMinimis);
                     
                     pdfFiles.push({
                         filename: result.filename,
@@ -230,37 +224,19 @@ app.http('createSigningSession', {
                 pdfFiles.forEach((pdf, index) => {
                     const documentId = String(index + 1);
                     
-                    if (pdf.form === 'de-minimis') {
-                        // De-minimis uses anchor text
-                        signatureTabs.push({
-                            documentId: documentId,
-                            anchorString: '/sig1/',
-                            anchorUnits: 'pixels',
-                            anchorXOffset: '0',
-                            anchorYOffset: '0'
-                        });
-                        dateSignedTabs.push({
-                            documentId: documentId,
-                            anchorString: '/date1/',
-                            anchorUnits: 'pixels',
-                            anchorXOffset: '0',
-                            anchorYOffset: '0'
-                        });
-                    } else {
-                        // Other forms use absolute positioning
-                        signatureTabs.push({
-                            documentId: documentId,
-                            pageNumber: '1',
-                            xPosition: '200',
-                            yPosition: '100'
-                        });
-                        dateSignedTabs.push({
-                            documentId: documentId,
-                            pageNumber: '1',
-                            xPosition: '350',
-                            yPosition: '100'
-                        });
-                    }
+                    // All forms use absolute positioning for now
+                    signatureTabs.push({
+                        documentId: documentId,
+                        pageNumber: '1',
+                        xPosition: '200',
+                        yPosition: '100'
+                    });
+                    dateSignedTabs.push({
+                        documentId: documentId,
+                        pageNumber: '1',
+                        xPosition: '350',
+                        yPosition: '100'
+                    });
                 });
                 
                 const signers = [{
