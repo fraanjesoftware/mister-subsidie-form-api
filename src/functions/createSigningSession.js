@@ -228,18 +228,16 @@ app.http('createSigningSession', {
                     name: requestBody.signer.name,
                     clientUserId: clientUserId, // Required for embedded signing
                     signatureTabs: [{
-                        anchorString: '/sig1/',
-                        anchorXOffset: '0',
-                        anchorYOffset: '0',
-                        anchorUnits: 'pixels',
-                        anchorIgnoreIfNotPresent: 'false'
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '200',
+                        yPosition: '100'
                     }],
                     dateSignedTabs: [{
-                        anchorString: '/date1/',
-                        anchorXOffset: '0',
-                        anchorYOffset: '0',
-                        anchorUnits: 'pixels',
-                        anchorIgnoreIfNotPresent: 'false'
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '350',
+                        yPosition: '100'
                     }]
                 }];
                 
