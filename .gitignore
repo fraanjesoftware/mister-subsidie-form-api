@@ -15,3 +15,6 @@ filled-*.pdf
 .DS_Store
 
 credentials.json
+
+# TypeScript build output
+dist/

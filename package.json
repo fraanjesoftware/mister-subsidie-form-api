@@ -1,9 +1,12 @@
 {
   "name": "mister-subsidie-form-api",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "func start",
+    "prestart": "npm run build",
+    "start": "func start --typescript",
+    "build": "tsc",
+    "dev": "tsc --watch",
     "test": "echo \"No test specified\""
   },
   "keywords": [],
@@ -13,9 +16,14 @@
   "dependencies": {
     "@azure/functions": "^4.7.3-beta.0",
     "@google-cloud/local-auth": "^3.0.1",
+    "docusign-esign": "^7.0.2",
     "googleapis": "^150.0.1",
     "pdf-lib": "^1.17.1",
-    "docusign-esign": "^7.0.2",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.4",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.3"
   }
 }
