@@ -9,6 +9,7 @@ require('./functions/debugDocuSign');
 require('./functions/testMinimalEnvelope');
 require('./functions/testDirectPdf');
 require('./functions/testPdfFormIssue');
+require('./functions/testMinimalFormFill');
 
 // You can add more function imports here as you create them
 // require('./functions/anotherFunction');
