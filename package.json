@@ -5,7 +5,7 @@
   "scripts": {
     "prestart": "npm run build",
     "start": "func start --typescript",
-    "build": "tsc",
+    "build": "tsc && cp -r src/pdfs dist/",
     "dev": "tsc --watch",
     "test": "echo \"No test specified\""
   },
