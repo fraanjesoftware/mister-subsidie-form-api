@@ -1,6 +1,8 @@
 const { app } = require('@azure/functions');
 const { v4: uuidv4 } = require('uuid');
 const DocuSignService = require('../services/docusignService');
+const fs = require('fs').promises;
+const path = require('path');
 
 app.http('createSigningSession', {
     methods: ['POST'],
@@ -30,16 +32,31 @@ app.http('createSigningSession', {
             const docusign = new DocuSignService();
             await docusign.initialize();
             
-            // SIMPLIFIED: Use hardcoded test PDF for now
-            const testPdfBase64 = 'JVBERi0xLjUKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovUmVzb3VyY2VzIDMgMCBSCi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA2IDAgUgo+PgplbmRvYmoKNiAwIG9iago8PAovTGVuZ3RoIDQ0Cj4+CnN0cmVhbQpCVApxCjcwIDUwIFRECi9GMSAxMiBUZgooVGVzdCBEb2N1bWVudCkgVGoKRVQKUQplbmRzdHJlYW0KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFs1IDAgUl0KL0NvdW50IDEKL1Jlc291cmNlcyAzIDAgUgo+PgplbmRvYmoKMyAwIG9iago8PAovRm9udCA8PAovRjEgPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+Cj4+Cj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDI4MiAwMDAwMCBuIAowMDAwMDAwMzY2IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjM3IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCA0IDAgUgo+PgpzdGFydHhyZWYKNDcwCiUlRU9G';
+            // TEST: Use the original de-minimis PDF (unfilled)
+            let pdfBase64;
+            let pdfName;
+            
+            try {
+                // Read the original de-minimis PDF
+                const pdfPath = path.join(__dirname, '../pdfs/1 de-minimisverklaring.pdf');
+                const pdfBytes = await fs.readFile(pdfPath);
+                pdfBase64 = pdfBytes.toString('base64');
+                pdfName = '1 de-minimisverklaring.pdf';
+                context.log('Successfully loaded original de-minimis PDF, size:', pdfBytes.length);
+            } catch (error) {
+                context.log('Failed to load PDF, using test PDF instead:', error.message);
+                // Fallback to test PDF
+                pdfBase64 = 'JVBERi0xLjUKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovUmVzb3VyY2VzIDMgMCBSCi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA2IDAgUgo+PgplbmRvYmoKNiAwIG9iago8PAovTGVuZ3RoIDQ0Cj4+CnN0cmVhbQpCVApxCjcwIDUwIFRECi9GMSAxMiBUZgooVGVzdCBEb2N1bWVudCkgVGoKRVQKUQplbmRzdHJlYW0KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFs1IDAgUl0KL0NvdW50IDEKL1Jlc291cmNlcyAzIDAgUgo+PgplbmRvYmoKMyAwIG9iago8PAovRm9udCA8PAovRjEgPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+Cj4+Cj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDI4MiAwMDAwMCBuIAowMDAwMDAwMzY2IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjM3IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCA0IDAgUgo+PgpzdGFydHhyZWYKNDcwCiUlRU9G';
+                pdfName = 'test-document.pdf';
+            }
             
             // Generate unique client user ID for embedded signing
             const clientUserId = uuidv4();
             
             // Create documents array - EXACTLY like testMinimalEnvelope
             const documents = [{
-                name: 'test-document.pdf',
-                base64: testPdfBase64
+                name: pdfName,
+                base64: pdfBase64
             }];
             
             // Create signers array - EXACTLY like testMinimalEnvelope
@@ -92,7 +109,7 @@ app.http('createSigningSession', {
                     envelopeId: envelopeId,
                     signingUrl: signingUrl,
                     expiresIn: 300, // 5 minutes
-                    message: 'Signing session created successfully (simplified version)'
+                    message: 'Signing session created successfully (using original de-minimis PDF)'
                 }),
                 headers: {
                     'Content-Type': 'application/json'
