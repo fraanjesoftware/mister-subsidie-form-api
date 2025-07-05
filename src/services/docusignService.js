@@ -110,6 +110,7 @@ class DocuSignService {
 
       // Add documents
       envelopeDefinition.documents = documents.map((doc, index) => {
+        console.log(`Document ${index + 1}: name=${doc.name}, base64 exists=${!!doc.base64}, base64 length=${doc.base64?.length || 0}`);
         return {
           documentBase64: doc.base64,
           name: doc.name,
