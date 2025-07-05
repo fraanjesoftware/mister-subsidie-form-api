@@ -4,7 +4,13 @@ const DocuSignService = require('../services/docusignService');
 const fs = require('fs').promises;
 const path = require('path');
 const { fillDeMinimisForm } = require('../services/fillDeMinimis');
-const { fillDeMinimisSimple } = require('../services/fillDeMinimisSimple');
+const { fillMachtigingForm } = require('../services/fillMachtiging');
+const { fillMKBForm } = require('../services/fillMKB');
+const { 
+    validateDeMinimisData, 
+    validateMachtigingData, 
+    validateMKBData 
+} = require('../models/formModels');
 
 app.http('createSigningSession', {
     methods: ['POST'],
@@ -30,39 +36,91 @@ app.http('createSigningSession', {
                 };
             }
             
+            // Validate form type
+            const validFormTypes = ['deMinimis', 'machtiging', 'mkb'];
+            if (!requestBody.formType || !validFormTypes.includes(requestBody.formType)) {
+                return {
+                    status: 400,
+                    body: JSON.stringify({
+                        error: 'Invalid form type',
+                        message: `Please provide a valid formType: ${validFormTypes.join(', ')}`
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+            }
+            
+            // Validate form data based on type
+            let validationErrors = [];
+            if (requestBody.formType === 'deMinimis') {
+                validationErrors = validateDeMinimisData(requestBody.formData || {});
+            } else if (requestBody.formType === 'machtiging') {
+                validationErrors = validateMachtigingData(requestBody.formData || {});
+            } else if (requestBody.formType === 'mkb') {
+                validationErrors = validateMKBData(requestBody.formData || {});
+            }
+            
+            if (validationErrors.length > 0) {
+                return {
+                    status: 400,
+                    body: JSON.stringify({
+                        error: 'Invalid form data',
+                        message: 'Form data validation failed',
+                        validationErrors: validationErrors
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+            }
+            
             // Initialize DocuSign
             const docusign = new DocuSignService();
             await docusign.initialize();
             
-            // TEST: Now try with filled de-minimis PDF
+            // Fill the appropriate form based on formType
             let pdfBase64;
             let pdfName;
+            let pdfResult;
             
             try {
-                // TEST: Use simpler form filling to isolate the issue
-                const testCase = requestBody.testCase || 'minimal'; // minimal, radio, radio-and-text, all-fields
-                context.log('Testing with case:', testCase);
+                context.log(`Processing ${requestBody.formType} form`);
                 
-                const result = await fillDeMinimisForm(testCase);
-                context.log('PDF result type:', typeof result.pdfBytes);
-                context.log('PDF result is Buffer?', Buffer.isBuffer(result.pdfBytes));
-                context.log('PDF result is Uint8Array?', result.pdfBytes instanceof Uint8Array);
+                switch (requestBody.formType) {
+                    case 'deMinimis':
+                        pdfResult = await fillDeMinimisForm(requestBody.formData);
+                        break;
+                    case 'machtiging':
+                        pdfResult = await fillMachtigingForm(requestBody.formData);
+                        break;
+                    case 'mkb':
+                        pdfResult = await fillMKBForm(requestBody.formData);
+                        break;
+                }
                 
                 // Convert Uint8Array to Buffer if needed
-                const pdfBuffer = Buffer.isBuffer(result.pdfBytes) 
-                    ? result.pdfBytes 
-                    : Buffer.from(result.pdfBytes);
+                const pdfBuffer = Buffer.isBuffer(pdfResult.pdfBytes) 
+                    ? pdfResult.pdfBytes 
+                    : Buffer.from(pdfResult.pdfBytes);
                 
                 pdfBase64 = pdfBuffer.toString('base64');
-                pdfName = result.filename;
-                context.log('Successfully filled de-minimis PDF, size:', pdfBuffer.length);
-                context.log('Base64 length:', pdfBase64.length);
-                context.log('First 100 chars of base64:', pdfBase64.substring(0, 100));
+                pdfName = pdfResult.filename;
+                context.log(`Successfully filled ${requestBody.formType} PDF, size:`, pdfBuffer.length);
+                
             } catch (error) {
-                context.log('Failed to fill PDF, using test PDF instead:', error.message);
-                // Fallback to test PDF
-                pdfBase64 = 'JVBERi0xLjUKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovUmVzb3VyY2VzIDMgMCBSCi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA2IDAgUgo+PgplbmRvYmoKNiAwIG9iago8PAovTGVuZ3RoIDQ0Cj4+CnN0cmVhbQpCVApxCjcwIDUwIFRECi9GMSAxMiBUZgooVGVzdCBEb2N1bWVudCkgVGoKRVQKUQplbmRzdHJlYW0KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFs1IDAgUl0KL0NvdW50IDEKL1Jlc291cmNlcyAzIDAgUgo+PgplbmRvYmoKMyAwIG9iago8PAovRm9udCA8PAovRjEgPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+Cj4+Cj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDI4MiAwMDAwMCBuIAowMDAwMDAwMzY2IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjM3IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCA0IDAgUgo+PgpzdGFydHhyZWYKNDcwCiUlRU9G';
-                pdfName = 'test-document.pdf';
+                context.log(`Failed to fill ${requestBody.formType} PDF:`, error.message);
+                return {
+                    status: 500,
+                    body: JSON.stringify({
+                        error: 'Failed to generate PDF',
+                        message: error.message,
+                        formType: requestBody.formType
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
             }
             
             // Generate unique client user ID for embedded signing
@@ -124,7 +182,7 @@ app.http('createSigningSession', {
                     envelopeId: envelopeId,
                     signingUrl: signingUrl,
                     expiresIn: 300, // 5 minutes
-                    message: `Signing session created successfully (test case: ${requestBody.testCase || 'minimal'})`
+                    message: `Signing session created successfully for ${requestBody.formType} form`
                 }),
                 headers: {
                     'Content-Type': 'application/json'
