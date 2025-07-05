@@ -12,38 +12,40 @@ async function fillDeMinimisForm(data, outputDir = null) {
         const form = pdfDoc.getForm();
     
         const radioGroup3 = form.getRadioGroup('1.1');
-        radioGroup3.select('Geen de-minimissteun is verleend');
         
-        form.getTextField('2.1').setText('Test Company B.V.');
-        form.getTextField('2.2').setText('12345678');
-        form.getTextField('2.3').setText('Teststraat');
-        form.getTextField('2.4').setText('123');
-        form.getTextField('2.5').setText('Amsterdam');
-        form.getTextField('2.6_PC').setText('1234AB');
-        form.getTextField('2.7').setText('Test User');
-        form.getTextField('2.8_DAT1').setText('05-01-25');
+        // Fill general data from request
+        if (data.generalData) {
+            form.getTextField('2.1').setText(data.generalData.companyName || '');
+            form.getTextField('2.2').setText(data.generalData.kvkNumber || '');
+            form.getTextField('2.3').setText(data.generalData.street || '');
+            form.getTextField('2.4').setText(data.generalData.houseNumber || '');
+            form.getTextField('2.5').setText(data.generalData.city || '');
+            form.getTextField('2.6_PC').setText(data.generalData.postalCode || '');
+            form.getTextField('2.7').setText(data.generalData.signerName || '');
+            form.getTextField('2.8_DAT1').setText(data.generalData.date || '');
+        }
     
     // Conditional logic based on the selected option
     switch (data.selectedOption) {
       case 1: // Geen de-minimissteun is verleend
-        radioGroup.select('Geen de-minimissteun is verleend');
+        radioGroup3.select('Geen de-minimissteun is verleend');
         break;
         
       case 2: // Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden
-        radioGroup.select('Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden');
+        radioGroup3.select('Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden');
         if (data.option2Data) {
-          field_1_2.setText(data.option2Data.field_1_2 || '');
-          field_1_3.setText(data.option2Data.field_1_3 || '');
-          field_1_4.setText(data.option2Data.field_1_4 || '');
+          form.getTextField('1.2').setText(data.option2Data.field_1_2 || '');
+          form.getTextField('1.3').setText(data.option2Data.field_1_3 || '');
+          form.getTextField('1.4').setText(data.option2Data.field_1_4 || '');
         }
         break;
         
       case 3: // al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten
-        radioGroup.select('al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten');
+        radioGroup3.select('al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten');
         if (data.option3Data) {
-          field_1_2.setText(data.option3Data.field_1_2 || '');
-          field_1_3.setText(data.option3Data.field_1_3 || '');
-          field_1_4.setText(data.option3Data.field_1_4 || '');
+          form.getTextField('1.2').setText(data.option3Data.field_1_2 || '');
+          form.getTextField('1.3').setText(data.option3Data.field_1_3 || '');
+          form.getTextField('1.4').setText(data.option3Data.field_1_4 || '');
         }
         break;
         

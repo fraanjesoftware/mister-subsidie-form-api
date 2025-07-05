@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const { v4: uuidv4 } = require('uuid');
 const DocuSignService = require('../services/docusignService');
-const { fillMKBForm } = require('../services/fillMKB');
+const { fillMKBVerklaring } = require('../services/fillMKB');
 const { validateMKBData } = require('../models/formModels');
 
 app.http('createMKBSession', {
@@ -56,7 +56,7 @@ app.http('createMKBSession', {
             
             try {
                 context.log('Processing MKB form');
-                const pdfResult = await fillMKBForm(requestBody.formData);
+                const pdfResult = await fillMKBVerklaring(requestBody.formData);
                 
                 // Convert Uint8Array to Buffer if needed
                 const pdfBuffer = Buffer.isBuffer(pdfResult.pdfBytes) 

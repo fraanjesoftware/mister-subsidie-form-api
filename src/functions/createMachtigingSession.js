@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const { v4: uuidv4 } = require('uuid');
 const DocuSignService = require('../services/docusignService');
-const { fillMachtigingForm } = require('../services/fillMachtiging');
+const { fillMachtigingsformulier } = require('../services/fillMachtiging');
 const { validateMachtigingData } = require('../models/formModels');
 
 app.http('createMachtigingSession', {
@@ -55,7 +55,7 @@ app.http('createMachtigingSession', {
             
             try {
                 context.log('Processing Machtiging form');
-                const pdfResult = await fillMachtigingForm(requestBody.formData);
+                const pdfResult = await fillMachtigingsformulier(requestBody.formData);
                 
                 // Convert Uint8Array to Buffer if needed
                 const pdfBuffer = Buffer.isBuffer(pdfResult.pdfBytes) 

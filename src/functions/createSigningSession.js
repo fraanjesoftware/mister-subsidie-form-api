@@ -4,8 +4,8 @@ const DocuSignService = require('../services/docusignService');
 const fs = require('fs').promises;
 const path = require('path');
 const { fillDeMinimisForm } = require('../services/fillDeMinimis');
-const { fillMachtigingForm } = require('../services/fillMachtiging');
-const { fillMKBForm } = require('../services/fillMKB');
+const { fillMachtigingsformulier } = require('../services/fillMachtiging');
+const { fillMKBVerklaring } = require('../services/fillMKB');
 const { 
     validateDeMinimisData, 
     validateMachtigingData, 
@@ -92,10 +92,10 @@ app.http('createSigningSession', {
                         pdfResult = await fillDeMinimisForm(requestBody.formData);
                         break;
                     case 'machtiging':
-                        pdfResult = await fillMachtigingForm(requestBody.formData);
+                        pdfResult = await fillMachtigingsformulier(requestBody.formData);
                         break;
                     case 'mkb':
-                        pdfResult = await fillMKBForm(requestBody.formData);
+                        pdfResult = await fillMKBVerklaring(requestBody.formData);
                         break;
                 }
                 
