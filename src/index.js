@@ -5,7 +5,7 @@
 require('./functions/fillForms');
 require('./functions/createSigningSession');
 require('./functions/docusignWebhook');
-require('./functions/testDocuSignAuth');
+// require('./functions/testDocuSignAuth'); // Temporarily disabled
 
 // You can add more function imports here as you create them
 // require('./functions/anotherFunction');
