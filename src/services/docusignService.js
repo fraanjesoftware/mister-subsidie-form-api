@@ -219,9 +219,20 @@ class DocuSignService {
       }
 
       // Send the envelope
-      const results = await envelopesApi.createEnvelope(this.accountId, {
-        envelopeDefinition: envelopeDefinition
-      });
+      let results;
+      try {
+        results = await envelopesApi.createEnvelope(this.accountId, {
+          envelopeDefinition: envelopeDefinition
+        });
+      } catch (apiError) {
+        console.error('DocuSign API Error:', apiError.response?.body || apiError.message);
+        console.error('Status Code:', apiError.response?.status);
+        console.error('Error Details:', JSON.stringify(apiError.response?.body || apiError, null, 2));
+        
+        // Re-throw with more details
+        const errorMessage = apiError.response?.body?.message || apiError.message || 'Unknown error';
+        throw new Error(`DocuSign API Error: ${errorMessage}`);
+      }
 
       console.log(`Envelope created with ID: ${results.envelopeId}`);
       return results.envelopeId;
