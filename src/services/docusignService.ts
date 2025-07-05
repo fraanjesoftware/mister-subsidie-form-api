@@ -415,14 +415,30 @@ class DocuSignService {
       // Add frame ancestors and message origins for iframe embedding
       if (forEmbedding) {
         // Get allowed origins from environment variables
-        const allowedOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',') || [
+        const allowedOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
           'http://localhost:5173',
           'https://purple-dune-0613f4303.1.azurestaticapps.net'
         ];
         
+        console.log('Setting iframe embedding configuration:', {
+          frameAncestors: allowedOrigins,
+          messageOrigins: allowedOrigins
+        });
+        
         viewRequest.frameAncestors = allowedOrigins;
         viewRequest.messageOrigins = allowedOrigins;
       }
+
+      console.log('Creating recipient view with request:', {
+        envelopeId,
+        accountId: this.accountId,
+        email: viewRequest.email,
+        userName: viewRequest.userName,
+        clientUserId: viewRequest.clientUserId,
+        forEmbedding,
+        frameAncestors: viewRequest.frameAncestors,
+        messageOrigins: viewRequest.messageOrigins
+      });
 
       const results = await envelopesApi.createRecipientView(
         this.accountId!,
@@ -430,9 +446,32 @@ class DocuSignService {
         { recipientViewRequest: viewRequest }
       );
 
+      console.log('Recipient view created successfully, URL:', results.url);
       return results.url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting embedded signing URL:', error);
+      
+      // Extract detailed error information
+      if (error.response) {
+        const errorDetails: DocuSignErrorDetails = {
+          status: error.response?.status || error.status,
+          statusText: error.response?.statusText,
+          message: error.response?.body?.message || error.response?.text || error.message,
+          errorCode: error.response?.body?.errorCode,
+          rawBody: error.response?.text || error.response?.body,
+          headers: error.response?.headers
+        };
+        
+        console.error('=== DocuSign API Error (Recipient View) ===');
+        console.error('Status:', errorDetails.status);
+        console.error('Error Message:', errorDetails.message);
+        console.error('Error Code:', errorDetails.errorCode);
+        console.error('Raw Body:', errorDetails.rawBody);
+        console.error('==========================================');
+        
+        throw new DocuSignError(errorDetails.message || 'Failed to create recipient view', errorDetails);
+      }
+      
       throw error;
     }
   }

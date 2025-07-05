@@ -14,6 +14,7 @@ import {
 interface Signer {
   email: string;
   name: string;
+  clientUserId?: string;
 }
 
 interface Form {
@@ -243,8 +244,8 @@ app.http('createSigningSession', {
         }
       }
       
-      // Generate unique client user ID for embedded signing
-      const clientUserId = uuidv4();
+      // Use provided client user ID or generate a unique one
+      const clientUserId = requestBody.signer.clientUserId || uuidv4();
       
       // Create signers array with tabs for each document
       const signatureTabs: any[] = [];
@@ -298,7 +299,8 @@ app.http('createSigningSession', {
         requestBody.signer.email,
         requestBody.signer.name,
         clientUserId,
-        returnUrl
+        returnUrl,
+        false // forEmbedding = false, standard embedded signing without iframe support
       );
       
       context.log('Embedded signing URL generated');
