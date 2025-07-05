@@ -268,7 +268,7 @@ app.http('createSigningSession', {
                     emailMessage: requestBody.emailMessage || 'Please review and sign the attached subsidy forms.',
                     documents: documents,
                     signers: signers,
-                    customFields: customFields,
+                    // customFields: customFields, // Temporarily disabled to test
                     status: 'sent'
                 });
                 
