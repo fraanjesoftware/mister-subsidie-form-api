@@ -230,12 +230,16 @@ app.http('createSigningSession', {
                     signatureTabs: [{
                         anchorString: '/sig1/',
                         anchorXOffset: '0',
-                        anchorYOffset: '-5'
+                        anchorYOffset: '0',
+                        anchorUnits: 'pixels',
+                        anchorIgnoreIfNotPresent: 'false'
                     }],
                     dateSignedTabs: [{
                         anchorString: '/date1/',
                         anchorXOffset: '0',
-                        anchorYOffset: '-5'
+                        anchorYOffset: '0',
+                        anchorUnits: 'pixels',
+                        anchorIgnoreIfNotPresent: 'false'
                     }]
                 }];
                 
