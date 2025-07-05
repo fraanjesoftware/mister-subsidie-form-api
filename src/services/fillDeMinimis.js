@@ -92,7 +92,7 @@ async function fillDeMinimisForm(data, outputDir = null) {
       });
     }
     
-    // TEMPORARILY DISABLE FLATTEN - Testing if this causes DocuSign issues
+    // DO NOT FLATTEN - DocuSign works better with unflattened forms
     // form.flatten();
     
     // Save the filled PDF
