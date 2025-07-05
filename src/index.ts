@@ -4,6 +4,7 @@
 // Import all function files
 import './functions/fillForms';
 import './functions/createSigningSession';
+import './functions/createEmbeddedSigningSession';
 import './functions/docusignWebhook';
 
 

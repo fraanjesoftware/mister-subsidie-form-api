@@ -103,5 +103,7 @@ declare module 'docusign-esign' {
     email?: string;
     userName?: string;
     clientUserId?: string;
+    frameAncestors?: string[];
+    messageOrigins?: string[];
   }
 }

@@ -399,7 +399,9 @@ class DocuSignService {
     signerEmail: string,
     signerName: string,
     clientUserId: string,
-    returnUrl: string
+    returnUrl: string,
+    frameAncestors?: string[],
+    messageOrigins?: string[]
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
@@ -410,6 +412,12 @@ class DocuSignService {
       viewRequest.email = signerEmail;
       viewRequest.userName = signerName;
       viewRequest.clientUserId = clientUserId;
+      
+      // Configure for iframe embedding
+      if (frameAncestors && frameAncestors.length > 0) {
+        viewRequest.frameAncestors = frameAncestors;
+        viewRequest.messageOrigins = messageOrigins || frameAncestors;
+      }
 
       const results = await envelopesApi.createRecipientView(
         this.accountId!,
