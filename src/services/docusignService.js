@@ -276,8 +276,18 @@ class DocuSignService {
         console.error('Error Message:', errorDetails.message);
         console.error('Error Code:', errorDetails.errorCode);
         console.error('More Info:', errorDetails.moreInformation);
-        console.error('Full Response Body:', JSON.stringify(errorDetails.fullBody, null, 2));
+        console.error('Raw Body:', errorDetails.rawBody);
         console.error('Response Headers:', JSON.stringify(errorDetails.headers, null, 2));
+        
+        // Try to parse the error if it's a string
+        if (typeof errorDetails.rawBody === 'string') {
+          try {
+            const parsed = JSON.parse(errorDetails.rawBody);
+            console.error('Parsed Error:', JSON.stringify(parsed, null, 2));
+          } catch (e) {
+            console.error('Could not parse error body as JSON');
+          }
+        }
         console.error('==========================');
         
         // Include all details in the thrown error
