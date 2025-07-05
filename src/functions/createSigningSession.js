@@ -4,7 +4,7 @@ const DocuSignService = require('../services/docusignService');
 const fs = require('fs').promises;
 const path = require('path');
 const { fillDeMinimisForm } = require('../services/fillDeMinimis');
-const { fillDeMinimisSimple } = require('../services/fillDeMinimisSimple');
+const { fillDeMinimisFixed } = require('../services/fillDeMinimisFixed');
 
 app.http('createSigningSession', {
     methods: ['POST'],
@@ -39,11 +39,22 @@ app.http('createSigningSession', {
             let pdfName;
             
             try {
-                // TEST: Use simpler form filling to isolate the issue
-                const testCase = requestBody.testCase || 'minimal'; // minimal, radio, radio-and-text, all-fields
-                context.log('Testing with case:', testCase);
+                // Use the fixed version of fillDeMinimis
+                const testData = {
+                    selectedOption: 1,
+                    generalData: {
+                        companyName: "Test Company B.V.",
+                        kvkNumber: "12345678",
+                        street: "Teststraat",
+                        houseNumber: "123",
+                        city: "Amsterdam",
+                        postalCode: "1234AB",
+                        signerName: "Test User",
+                        date: "05-01-25"
+                    }
+                };
                 
-                const result = await fillDeMinimisSimple(testCase);
+                const result = await fillDeMinimisFixed(testData);
                 context.log('PDF result type:', typeof result.pdfBytes);
                 context.log('PDF result is Buffer?', Buffer.isBuffer(result.pdfBytes));
                 context.log('PDF result is Uint8Array?', result.pdfBytes instanceof Uint8Array);
@@ -124,7 +135,7 @@ app.http('createSigningSession', {
                     envelopeId: envelopeId,
                     signingUrl: signingUrl,
                     expiresIn: 300, // 5 minutes
-                    message: `Signing session created successfully (test case: ${requestBody.testCase || 'minimal'})`
+                    message: 'Signing session created successfully (using fixed fillDeMinimis)'
                 }),
                 headers: {
                     'Content-Type': 'application/json'
