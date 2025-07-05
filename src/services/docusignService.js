@@ -218,6 +218,30 @@ class DocuSignService {
         envelopeDefinition.customFields = customFields;
       }
 
+      // Log what we're sending
+      console.log('=== Sending to DocuSign ===');
+      console.log('Account ID:', this.accountId);
+      console.log('Email Subject:', envelopeDefinition.emailSubject);
+      console.log('Number of Documents:', envelopeDefinition.documents.length);
+      console.log('Documents:', envelopeDefinition.documents.map(d => ({
+        name: d.name,
+        documentId: d.documentId,
+        fileExtension: d.fileExtension,
+        base64Length: d.documentBase64?.length || 0
+      })));
+      console.log('Number of Signers:', recipients.signers.length);
+      console.log('Signers:', recipients.signers.map(s => ({
+        email: s.email,
+        name: s.name,
+        recipientId: s.recipientId,
+        clientUserId: s.clientUserId,
+        tabs: {
+          signHereTabs: s.tabs?.signHereTabs?.length || 0,
+          dateSignedTabs: s.tabs?.dateSignedTabs?.length || 0
+        }
+      })));
+      console.log('==========================');
+      
       // Send the envelope
       let results;
       try {
@@ -225,14 +249,24 @@ class DocuSignService {
           envelopeDefinition: envelopeDefinition
         });
       } catch (apiError) {
+        // Log the raw error first
+        console.error('=== Raw DocuSign Error ===');
+        console.error('Error object keys:', Object.keys(apiError));
+        console.error('Response exists:', !!apiError.response);
+        if (apiError.response) {
+          console.error('Response keys:', Object.keys(apiError.response));
+          console.error('Response body:', apiError.response.body);
+          console.error('Response text:', apiError.response.text);
+          console.error('Response data:', apiError.response.data);
+        }
+        
         // Extract detailed error information
         const errorDetails = {
           status: apiError.response?.status || apiError.status,
           statusText: apiError.response?.statusText,
-          message: apiError.response?.body?.message || apiError.message,
+          message: apiError.response?.body?.message || apiError.response?.text || apiError.message,
           errorCode: apiError.response?.body?.errorCode,
-          moreInformation: apiError.response?.body?.moreInformation,
-          fullBody: apiError.response?.body,
+          rawBody: apiError.response?.text || apiError.response?.body,
           headers: apiError.response?.headers
         };
         
