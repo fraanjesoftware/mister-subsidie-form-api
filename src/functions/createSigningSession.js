@@ -43,7 +43,7 @@ app.http('createSigningSession', {
                 const testCase = requestBody.testCase || 'minimal'; // minimal, radio, radio-and-text, all-fields
                 context.log('Testing with case:', testCase);
                 
-                const result = await fillDeMinimisSimple(testCase);
+                const result = await fillDeMinimisForm(testCase);
                 context.log('PDF result type:', typeof result.pdfBytes);
                 context.log('PDF result is Buffer?', Buffer.isBuffer(result.pdfBytes));
                 context.log('PDF result is Uint8Array?', result.pdfBytes instanceof Uint8Array);
