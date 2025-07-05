@@ -399,9 +399,7 @@ class DocuSignService {
     signerEmail: string,
     signerName: string,
     clientUserId: string,
-    returnUrl: string,
-    frameAncestors?: string[],
-    messageOrigins?: string[]
+    returnUrl: string
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);

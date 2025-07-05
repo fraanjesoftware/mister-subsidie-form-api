@@ -309,15 +309,13 @@ app.http('createEmbeddedSigningSession', {
       });
       
       context.log('Envelope created:', envelopeId);
-      // Get embedded signing URL with proper iframe configuration
+      // Get embedded signing URL
       const signingUrl = await docusign.getEmbeddedSigningUrl(
         envelopeId,
         requestBody.signer.email,
         requestBody.signer.name,
         clientUserId,
-        requestBody.returnUrl,
-        requestBody.frameAncestors,
-        requestBody.messageOrigins
+        requestBody.returnUrl
       );
       
       context.log('Embedded signing URL generated with iframe configuration');
