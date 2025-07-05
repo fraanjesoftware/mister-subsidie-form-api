@@ -222,51 +222,23 @@ app.http('createSigningSession', {
                     base64: pdf.pdfBytes.toString('base64')
                 }));
                 
-                // Create signers with tabs for each document
-                const signatureTabs = [];
-                const dateSignedTabs = [];
-                
-                // For each document, check if it has anchors or needs absolute positioning
-                pdfFiles.forEach((pdf, index) => {
-                    const documentId = String(index + 1);
-                    
-                    if (pdf.form === 'de-minimis') {
-                        // De-minimis uses anchor text
-                        signatureTabs.push({
-                            anchorString: '/sig1/',
-                            anchorUnits: 'pixels',
-                            anchorXOffset: '0',
-                            anchorYOffset: '0'
-                        });
-                        dateSignedTabs.push({
-                            anchorString: '/date1/',
-                            anchorUnits: 'pixels',
-                            anchorXOffset: '0',
-                            anchorYOffset: '0'
-                        });
-                    } else {
-                        // Other forms use absolute positioning
-                        signatureTabs.push({
-                            documentId: documentId,
-                            pageNumber: '1',
-                            xPosition: '200',
-                            yPosition: '100'
-                        });
-                        dateSignedTabs.push({
-                            documentId: documentId,
-                            pageNumber: '1',
-                            xPosition: '350',
-                            yPosition: '100'
-                        });
-                    }
-                });
-                
+                // Create signers with tabs - use exact same structure as working test
                 const signers = [{
                     email: requestBody.signer.email,
                     name: requestBody.signer.name,
                     clientUserId: clientUserId, // Required for embedded signing
-                    signatureTabs: signatureTabs,
-                    dateSignedTabs: dateSignedTabs
+                    signatureTabs: [{
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '200',
+                        yPosition: '100'
+                    }],
+                    dateSignedTabs: [{
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '350',
+                        yPosition: '100'
+                    }]
                 }];
                 
                 // Add custom fields to store metadata for webhook
