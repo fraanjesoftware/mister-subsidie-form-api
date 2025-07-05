@@ -27,8 +27,8 @@ interface EmbeddedSigningRequest {
   formData?: any;
   forms?: Form[];
   returnUrl: string;
-  frameAncestors: string[]; // Array of allowed origins for iframe embedding
-  messageOrigins: string[]; // Array of allowed origins for postMessage communication
+  frameAncestors?: string[]; // Array of allowed origins for iframe embedding (optional)
+  messageOrigins?: string[]; // Array of allowed origins for postMessage communication (optional)
 }
 
 interface ProcessingResult {
@@ -76,18 +76,9 @@ app.http('createEmbeddedSigningSession', {
         };
       }
       
-      if (!requestBody.frameAncestors || requestBody.frameAncestors.length === 0) {
-        return {
-          status: 400,
-          body: JSON.stringify({
-            error: 'Missing frameAncestors',
-            message: 'Please provide at least one origin in frameAncestors array for iframe embedding'
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        };
+      // frameAncestors is optional for now - DocuSign may not support it in all environments
+      if (requestBody.frameAncestors && requestBody.frameAncestors.length > 0) {
+        context.log('Frame ancestors provided:', requestBody.frameAncestors);
       }
       
       // Check if we're processing multiple forms or a single form

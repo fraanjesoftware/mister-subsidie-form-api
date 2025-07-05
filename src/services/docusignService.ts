@@ -413,11 +413,8 @@ class DocuSignService {
       viewRequest.userName = signerName;
       viewRequest.clientUserId = clientUserId;
       
-      // Configure for iframe embedding
-      if (frameAncestors && frameAncestors.length > 0) {
-        viewRequest.frameAncestors = frameAncestors;
-        viewRequest.messageOrigins = messageOrigins || frameAncestors;
-      }
+      // Note: frameAncestors and messageOrigins are not supported in the older API
+      // CORS must be configured in DocuSign Admin instead
 
       const results = await envelopesApi.createRecipientView(
         this.accountId!,
