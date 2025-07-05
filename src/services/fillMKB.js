@@ -82,36 +82,41 @@ async function fillMKBVerklaring(data, outputDir = null) {
     // Get the form
     const form = pdfDoc.getForm();
     
-    // Fill basic company information (only when values exist)
-    if (data.companyName) {
-      form.getTextField('naam onderneming').setText(data.companyName);
-    }
-    if (data.financialYear) {
-      form.getTextField('boekjaar').setText(data.financialYear);
-    }
-    if (data.employees !== undefined && data.employees !== null) {
-      form.getTextField('werkzame personen').setText(String(data.employees));
-    }
-    if (data.annualTurnover !== undefined && data.annualTurnover !== null) {
-      form.getTextField('jaaromzet').setText(`€ ${data.annualTurnover}`);
-    }
-    if (data.balanceTotal !== undefined && data.balanceTotal !== null) {
-      form.getTextField('balanstotaal').setText(`€ ${data.balanceTotal}`);
-    }
+    // Get all fields
+    const companyNameField = form.getTextField('naam onderneming');
+    const financialYearField = form.getTextField('boekjaar');
+    const employeesField = form.getTextField('werkzame personen');
+    const turnoverField = form.getTextField('jaaromzet');
+    const balanceField = form.getTextField('balanstotaal');
+    const signerNameField = form.getTextField('naam tekenbevoegde');
+    const positionField = form.getTextField('functie');
+    const dateLocationField = form.getTextField('datum en plaats');
     
-    // Fill signer information (only when values exist)
-    if (data.signerName) {
-      form.getTextField('naam tekenbevoegde').setText(data.signerName);
-    }
-    if (data.signerPosition) {
-      form.getTextField('functie').setText(data.signerPosition);
-    }
-    if (data.dateAndLocation) {
-      form.getTextField('datum en plaats').setText(data.dateAndLocation);
-    }
+    // Radio groups
+    const companyTypeRadio = form.getRadioGroup('Type onderneming');
+    const fteRadio = form.getRadioGroup('aantal fte');
+    const turnoverRadio = form.getRadioGroup('omzet');
+    const balanceRadio = form.getRadioGroup('balans');
+    const votingRightsRadio = form.getRadioGroup('stemrechten');
+    const capitalRadio = form.getRadioGroup('kapitaal');
+    const aggregatedValuesRadio = form.getRadioGroup('opgetelde waarden');
+    const smallFteRadio = form.getRadioGroup('klein fte');
+    const smallTurnoverRadio = form.getRadioGroup('klein omzet');
+    
+    // Fill basic company information
+    companyNameField.setText(data.companyName || '');
+    financialYearField.setText(data.financialYear || '');
+    employeesField.setText(String(data.employees) || '');
+    turnoverField.setText(`€ ${data.annualTurnover || ''}`.trim());
+    balanceField.setText(`€ ${data.balanceTotal || ''}`.trim());
+    
+    // Fill signer information
+    signerNameField.setText(data.signerName || '');
+    positionField.setText(data.signerPosition || '');
+    dateLocationField.setText(data.dateAndLocation || '');
     
     // Select company type based on calculation
-    form.getRadioGroup('Type onderneming').select(companySize.type);
+    companyTypeRadio.select(companySize.type);
     
     // Fill decision tree based on company size
     const emp = Number(data.employees);
@@ -120,31 +125,34 @@ async function fillMKBVerklaring(data, outputDir = null) {
     
     // Independence criteria
     if (data.hasLargeCompanyOwnership !== undefined) {
-      form.getRadioGroup('stemrechten').select(data.hasLargeCompanyOwnership ? 'ja' : 'nee');
-      form.getRadioGroup('kapitaal').select(data.hasLargeCompanyOwnership ? 'ja' : 'nee');
+      votingRightsRadio.select(data.hasLargeCompanyOwnership ? 'ja' : 'nee');
+      capitalRadio.select(data.hasLargeCompanyOwnership ? 'ja' : 'nee');
     }
     
     // Decision tree logic
     if (companySize.type === 'Kleine onderneming') {
-      form.getRadioGroup('aantal fte').select(emp < 50 ? 'ja' : 'nee');
-      form.getRadioGroup('omzet').select(turn <= 10000000 ? 'ja' : 'nee');
-      form.getRadioGroup('balans').select(bal <= 10000000 ? 'ja' : 'nee');
+      fteRadio.select(emp < 50 ? 'ja' : 'nee');
+      turnoverRadio.select(turn <= 10000000 ? 'ja' : 'nee');
+      balanceRadio.select(bal <= 10000000 ? 'ja' : 'nee');
     } else if (companySize.type === 'Middelgrote onderneming') {
-      form.getRadioGroup('aantal fte').select(emp < 250 ? 'ja' : 'nee');
-      form.getRadioGroup('omzet').select(turn <= 50000000 ? 'ja' : 'nee');
-      form.getRadioGroup('balans').select(bal <= 43000000 ? 'ja' : 'nee');
-      form.getRadioGroup('klein fte').select(emp >= 50 ? 'ja' : 'nee');
-      form.getRadioGroup('klein omzet').select(turn > 10000000 ? 'ja' : 'nee');
+      fteRadio.select(emp < 250 ? 'ja' : 'nee');
+      turnoverRadio.select(turn <= 50000000 ? 'ja' : 'nee');
+      balanceRadio.select(bal <= 43000000 ? 'ja' : 'nee');
+      smallFteRadio.select(emp >= 50 ? 'ja' : 'nee');
+      smallTurnoverRadio.select(turn > 10000000 ? 'ja' : 'nee');
     }
     
     if (data.hasPartnerCompanies) {
-      form.getRadioGroup('opgetelde waarden').select('ja');
+      aggregatedValuesRadio.select('ja');
     }
     
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
       const pages = pdfDoc.getPages();
       const lastPage = pages[pages.length - 1]; // MKB form typically has signature on last page
+      
+      // Add invisible text for DocuSign anchor
+      const { height } = lastPage.getSize();
       
       // Add signature anchor (invisible white text)
       lastPage.drawText('/sig1/', {

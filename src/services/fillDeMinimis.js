@@ -12,8 +12,21 @@ async function fillDeMinimisForm(data, outputDir = null) {
     // Get the form
     const form = pdfDoc.getForm();
     
-    // Handle radio button selection
+    // Get fields
     const radioGroup = form.getRadioGroup('1.1');
+    const field_1_2 = form.getTextField('1.2');
+    const field_1_3 = form.getTextField('1.3');
+    const field_1_4 = form.getTextField('1.4');
+    const field_2_1 = form.getTextField('2.1');
+    const field_2_2 = form.getTextField('2.2');
+    const field_2_3 = form.getTextField('2.3');
+    const field_2_4 = form.getTextField('2.4');
+    const field_2_5 = form.getTextField('2.5');
+    const field_2_6_PC = form.getTextField('2.6_PC');
+    const field_2_7 = form.getTextField('2.7');
+    const field_2_8_DAT1 = form.getTextField('2.8_DAT1');
+    
+    // Conditional logic based on the selected option
     switch (data.selectedOption) {
       case 1: // Geen de-minimissteun is verleend
         radioGroup.select('Geen de-minimissteun is verleend');
@@ -22,32 +35,18 @@ async function fillDeMinimisForm(data, outputDir = null) {
       case 2: // Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden
         radioGroup.select('Wel de-minimissteun is verleend, maar het drempelbedrag niet wordt overschreden');
         if (data.option2Data) {
-          // Only get and fill fields when data exists
-          if (data.option2Data.field_1_2) {
-            form.getTextField('1.2').setText(data.option2Data.field_1_2);
-          }
-          if (data.option2Data.field_1_3) {
-            form.getTextField('1.3').setText(data.option2Data.field_1_3);
-          }
-          if (data.option2Data.field_1_4) {
-            form.getTextField('1.4').setText(data.option2Data.field_1_4);
-          }
+          field_1_2.setText(data.option2Data.field_1_2 || '');
+          field_1_3.setText(data.option2Data.field_1_3 || '');
+          field_1_4.setText(data.option2Data.field_1_4 || '');
         }
         break;
         
       case 3: // al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten
         radioGroup.select('al andere staatssteun is verleend voor dezelfde in aanmerking komende kosten');
         if (data.option3Data) {
-          // Only get and fill fields when data exists
-          if (data.option3Data.field_1_2) {
-            form.getTextField('1.2').setText(data.option3Data.field_1_2);
-          }
-          if (data.option3Data.field_1_3) {
-            form.getTextField('1.3').setText(data.option3Data.field_1_3);
-          }
-          if (data.option3Data.field_1_4) {
-            form.getTextField('1.4').setText(data.option3Data.field_1_4);
-          }
+          field_1_2.setText(data.option3Data.field_1_2 || '');
+          field_1_3.setText(data.option3Data.field_1_3 || '');
+          field_1_4.setText(data.option3Data.field_1_4 || '');
         }
         break;
         
@@ -55,38 +54,26 @@ async function fillDeMinimisForm(data, outputDir = null) {
         throw new Error('Invalid option selected. Please choose 1, 2, or 3.');
     }
     
-    // Fill the general data fields (only when values exist)
+    // Fill the section below checkboxes (always filled)
     if (data.generalData) {
-      if (data.generalData.companyName) {
-        form.getTextField('2.1').setText(data.generalData.companyName);
-      }
-      if (data.generalData.kvkNumber) {
-        form.getTextField('2.2').setText(data.generalData.kvkNumber);
-      }
-      if (data.generalData.street) {
-        form.getTextField('2.3').setText(data.generalData.street);
-      }
-      if (data.generalData.houseNumber) {
-        form.getTextField('2.4').setText(data.generalData.houseNumber);
-      }
-      if (data.generalData.city) {
-        form.getTextField('2.5').setText(data.generalData.city);
-      }
-      if (data.generalData.postalCode) {
-        form.getTextField('2.6_PC').setText(data.generalData.postalCode);
-      }
-      if (data.generalData.signerName) {
-        form.getTextField('2.7').setText(data.generalData.signerName);
-      }
-      if (data.generalData.date) {
-        form.getTextField('2.8_DAT1').setText(data.generalData.date);
-      }
+      field_2_1.setText(data.generalData.companyName || '');
+      field_2_2.setText(data.generalData.kvkNumber || '');
+      field_2_3.setText(data.generalData.street || '');
+      field_2_4.setText(data.generalData.houseNumber || '');
+      field_2_5.setText(data.generalData.city || '');
+      field_2_6_PC.setText(data.generalData.postalCode || ''); // Max 6 chars
+      field_2_7.setText(data.generalData.signerName || '');
+      field_2_8_DAT1.setText(data.generalData.date || ''); // Max 8 chars (DD-MM-YY)
     }
     
     // Add signature anchors if requested
     if (data.addSignatureAnchors) {
       const pages = pdfDoc.getPages();
       const lastPage = pages[pages.length - 1];
+      
+      // Add invisible text for DocuSign anchor
+      // Position near where signature should go (adjust based on your form)
+      const { height } = lastPage.getSize();
       
       // Add signature anchor (using very light gray instead of white)
       lastPage.drawText('/sig1/', {

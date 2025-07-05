@@ -1,10 +1,11 @@
 const { app } = require('@azure/functions');
 const { v4: uuidv4 } = require('uuid');
-const DocuSignService = require('../services/docusignService');
-const fs = require('fs').promises;
-const path = require('path');
+
+// Import services
 const { fillDeMinimisForm } = require('../services/fillDeMinimis');
-const { fillDeMinimisFixed } = require('../services/fillDeMinimisFixed');
+const { fillMachtigingsformulier } = require('../services/fillMachtiging');
+const { fillMKBVerklaring } = require('../services/fillMKB');
+const DocuSignService = require('../services/docusignService');
 
 app.http('createSigningSession', {
     methods: ['POST'],
@@ -12,24 +13,75 @@ app.http('createSigningSession', {
     handler: async (request, context) => {
         context.log('createSigningSession function processing request');
         
+        let requestBody = null;
+
         try {
             // Parse request body
-            const requestBody = await request.json();
-            
-            // Basic validation
-            if (!requestBody.signer || !requestBody.signer.email || !requestBody.signer.name) {
+            try {
+                requestBody = await request.json();
+                context.log('Request body received:', JSON.stringify(requestBody, null, 2));
+            } catch (parseError) {
+                context.log('ERROR: Failed to parse request body:', parseError);
                 return {
                     status: 400,
                     body: JSON.stringify({
-                        error: 'Missing signer information',
-                        message: 'Please provide signer email and name'
+                        error: 'Invalid JSON in request body',
+                        message: 'The request body must be valid JSON',
+                        details: parseError.message
                     }),
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 };
             }
-<<<<<<< HEAD
+
+            // Validate request
+            if (!requestBody || typeof requestBody !== 'object') {
+                return {
+                    status: 400,
+                    body: JSON.stringify({
+                        error: 'Invalid request body',
+                        message: 'Request body must be a JSON object'
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+            }
+
+            // Check if at least one form is requested
+            if (!requestBody.deMinimis && !requestBody.machtiging && !requestBody.mkbVerklaring) {
+                return {
+                    status: 400,
+                    body: JSON.stringify({
+                        error: 'No forms requested',
+                        message: 'Please specify at least one form to fill'
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+            }
+
+            // Validate signer information
+            if (!requestBody.signer || !requestBody.signer.email || !requestBody.signer.name) {
+                return {
+                    status: 400,
+                    body: JSON.stringify({
+                        error: 'Missing signer information',
+                        message: 'Please provide signer email and name',
+                        example: {
+                            signer: {
+                                email: 'signer@example.com',
+                                name: 'John Doe'
+                            }
+                        }
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+            }
 
             const results = {
                 filled: [],
@@ -44,7 +96,13 @@ app.http('createSigningSession', {
                 try {
                     context.log('Processing De-minimis form for signing...');
                     
-                    const result = await fillDeMinimisForm(requestBody.deMinimis);
+                    // Add signature anchors
+                    const formData = {
+                        ...requestBody.deMinimis,
+                        addSignatureAnchors: true
+                    };
+                    
+                    const result = await fillDeMinimisForm(formData);
                     
                     pdfFiles.push({
                         filename: result.filename,
@@ -164,35 +222,23 @@ app.http('createSigningSession', {
                     base64: pdf.pdfBytes.toString('base64')
                 }));
                 
-                // Create signers with tabs for each document
-                const signatureTabs = [];
-                const dateSignedTabs = [];
-                
-                // For each document, create appropriate signature tabs
-                pdfFiles.forEach((pdf, index) => {
-                    const documentId = String(index + 1);
-                    
-                    // All forms use absolute positioning for now
-                    signatureTabs.push({
-                        documentId: documentId,
-                        pageNumber: '1',
-                        xPosition: '200',
-                        yPosition: '100'
-                    });
-                    dateSignedTabs.push({
-                        documentId: documentId,
-                        pageNumber: '1',
-                        xPosition: '350',
-                        yPosition: '100'
-                    });
-                });
-                
+                // Create signers with tabs - use exact same structure as working test
                 const signers = [{
                     email: requestBody.signer.email,
                     name: requestBody.signer.name,
                     clientUserId: clientUserId, // Required for embedded signing
-                    signatureTabs: signatureTabs,
-                    dateSignedTabs: dateSignedTabs
+                    signatureTabs: [{
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '200',
+                        yPosition: '100'
+                    }],
+                    dateSignedTabs: [{
+                        documentId: '1',
+                        pageNumber: '1',
+                        xPosition: '350',
+                        yPosition: '100'
+                    }]
                 }];
                 
                 // Add custom fields to store metadata for webhook
@@ -222,7 +268,7 @@ app.http('createSigningSession', {
                     emailMessage: requestBody.emailMessage || 'Please review and sign the attached subsidy forms.',
                     documents: documents,
                     signers: signers,
-                    customFields: customFields,
+                    // customFields: customFields, // Temporarily disabled to test
                     status: 'sent'
                 });
                 
@@ -253,129 +299,42 @@ app.http('createSigningSession', {
                     }),
                     headers: {
                         'Content-Type': 'application/json'
-=======
-            
-            // Initialize DocuSign
-            const docusign = new DocuSignService();
-            await docusign.initialize();
-            
-            // TEST: Now try with filled de-minimis PDF
-            let pdfBase64;
-            let pdfName;
-            
-            try {
-                // Use the fixed version of fillDeMinimis
-                const testData = {
-                    selectedOption: 1,
-                    generalData: {
-                        companyName: "Test Company B.V.",
-                        kvkNumber: "12345678",
-                        street: "Teststraat",
-                        houseNumber: "123",
-                        city: "Amsterdam",
-                        postalCode: "1234AB",
-                        signerName: "Test User",
-                        date: "05-01-25"
->>>>>>> parent of 1023f8d (Fix all form filling functions and restore full createSigningSession functionality)
                     }
                 };
                 
-                const result = await fillDeMinimisFixed(testData);
-                context.log('PDF result type:', typeof result.pdfBytes);
-                context.log('PDF result is Buffer?', Buffer.isBuffer(result.pdfBytes));
-                context.log('PDF result is Uint8Array?', result.pdfBytes instanceof Uint8Array);
-                
-                // Convert Uint8Array to Buffer if needed
-                const pdfBuffer = Buffer.isBuffer(result.pdfBytes) 
-                    ? result.pdfBytes 
-                    : Buffer.from(result.pdfBytes);
-                
-                pdfBase64 = pdfBuffer.toString('base64');
-                pdfName = result.filename;
-                context.log('Successfully filled de-minimis PDF, size:', pdfBuffer.length);
-                context.log('Base64 length:', pdfBase64.length);
-                context.log('First 100 chars of base64:', pdfBase64.substring(0, 100));
             } catch (error) {
-                context.log('Failed to fill PDF, using test PDF instead:', error.message);
-                // Fallback to test PDF
-                pdfBase64 = 'JVBERi0xLjUKJeLjz9MKNCAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovUmVzb3VyY2VzIDMgMCBSCi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA2IDAgUgo+PgplbmRvYmoKNiAwIG9iago8PAovTGVuZ3RoIDQ0Cj4+CnN0cmVhbQpCVApxCjcwIDUwIFRECi9GMSAxMiBUZgooVGVzdCBEb2N1bWVudCkgVGoKRVQKUQplbmRzdHJlYW0KZW5kb2JqCjIgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9LaWRzIFs1IDAgUl0KL0NvdW50IDEKL1Jlc291cmNlcyAzIDAgUgo+PgplbmRvYmoKMyAwIG9iago8PAovRm9udCA8PAovRjEgPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+Cj4+Cj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDI4MiAwMDAwMCBuIAowMDAwMDAwMzY2IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjM3IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCA0IDAgUgo+PgpzdGFydHhyZWYKNDcwCiUlRU9G';
-                pdfName = 'test-document.pdf';
+                context.log('ERROR: Error creating DocuSign envelope:', error);
+                context.log('ERROR Details:', JSON.stringify(error.details || {}, null, 2));
+                
+                return {
+                    status: 500,
+                    body: JSON.stringify({
+                        error: 'Failed to create signing session',
+                        message: error.message,
+                        details: error.details || {},
+                        results: results
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
             }
-            
-            // Generate unique client user ID for embedded signing
-            const clientUserId = uuidv4();
-            
-            // Create documents array - EXACTLY like testMinimalEnvelope
-            const documents = [{
-                name: pdfName,
-                base64: pdfBase64
-            }];
-            
-            // Create signers array - EXACTLY like testMinimalEnvelope
-            const signers = [{
-                email: requestBody.signer.email,
-                name: requestBody.signer.name,
-                clientUserId: clientUserId,
-                signatureTabs: [{
-                    documentId: '1',
-                    pageNumber: '1',
-                    xPosition: '200',
-                    yPosition: '100'
-                }],
-                dateSignedTabs: [{
-                    documentId: '1',
-                    pageNumber: '1',
-                    xPosition: '350',
-                    yPosition: '100'
-                }]
-            }];
-            
-            // Create envelope - EXACTLY like testMinimalEnvelope
-            const envelopeId = await docusign.createEnvelope({
-                emailSubject: 'Please sign your subsidy forms',
-                emailMessage: 'Please review and sign the attached subsidy forms.',
-                documents: documents,
-                signers: signers,
-                status: 'sent'
-            });
-            
-            context.log('Envelope created:', envelopeId);
-            
-            // Get embedded signing URL
-            const returnUrl = requestBody.returnUrl || 'https://yourapp.com/signing-complete';
-            const signingUrl = await docusign.getEmbeddedSigningUrl(
-                envelopeId,
-                requestBody.signer.email,
-                requestBody.signer.name,
-                clientUserId,
-                returnUrl
-            );
-            
-            context.log('Embedded signing URL generated');
-            
-            // Return success response
-            return {
-                status: 200,
-                body: JSON.stringify({
-                    success: true,
-                    envelopeId: envelopeId,
-                    signingUrl: signingUrl,
-                    expiresIn: 300, // 5 minutes
-                    message: 'Signing session created successfully (using fixed fillDeMinimis)'
-                }),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-            
+
         } catch (error) {
-            context.log('ERROR:', error);
+            // Log full error details
+            context.log('ERROR: Unhandled error in createSigningSession:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+
+            // Return error response
             return {
                 status: 500,
                 body: JSON.stringify({
-                    error: 'Failed to create signing session',
+                    error: 'Internal server error',
                     message: error.message,
-                    details: error.details || {}
+                    timestamp: new Date().toISOString()
                 }),
                 headers: {
                     'Content-Type': 'application/json'
