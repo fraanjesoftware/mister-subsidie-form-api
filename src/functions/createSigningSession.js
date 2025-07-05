@@ -217,9 +217,11 @@ app.http('createSigningSession', {
                 const clientUserId = uuidv4();
                 
                 // Prepare documents for DocuSign
-                const documents = pdfFiles.map(pdf => ({
+                const documents = pdfFiles.map((pdf, index) => ({
                     name: pdf.filename,
-                    base64: pdf.pdfBytes.toString('base64')
+                    base64: pdf.pdfBytes.toString('base64'),
+                    fileExtension: 'pdf',
+                    documentId: String(index + 1)
                 }));
                 
                 // Create signers with tabs
@@ -304,11 +306,14 @@ app.http('createSigningSession', {
                 
             } catch (error) {
                 context.log('ERROR: Error creating DocuSign envelope:', error);
+                context.log('ERROR Details:', JSON.stringify(error.details || {}, null, 2));
+                
                 return {
                     status: 500,
                     body: JSON.stringify({
                         error: 'Failed to create signing session',
                         message: error.message,
+                        details: error.details || {},
                         results: results
                     }),
                     headers: {

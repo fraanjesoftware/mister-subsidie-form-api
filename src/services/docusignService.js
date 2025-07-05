@@ -225,13 +225,31 @@ class DocuSignService {
           envelopeDefinition: envelopeDefinition
         });
       } catch (apiError) {
-        console.error('DocuSign API Error:', apiError.response?.body || apiError.message);
-        console.error('Status Code:', apiError.response?.status);
-        console.error('Error Details:', JSON.stringify(apiError.response?.body || apiError, null, 2));
+        // Extract detailed error information
+        const errorDetails = {
+          status: apiError.response?.status || apiError.status,
+          statusText: apiError.response?.statusText,
+          message: apiError.response?.body?.message || apiError.message,
+          errorCode: apiError.response?.body?.errorCode,
+          moreInformation: apiError.response?.body?.moreInformation,
+          fullBody: apiError.response?.body,
+          headers: apiError.response?.headers
+        };
         
-        // Re-throw with more details
-        const errorMessage = apiError.response?.body?.message || apiError.message || 'Unknown error';
-        throw new Error(`DocuSign API Error: ${errorMessage}`);
+        console.error('=== DocuSign API Error ===');
+        console.error('Status:', errorDetails.status);
+        console.error('Status Text:', errorDetails.statusText);
+        console.error('Error Message:', errorDetails.message);
+        console.error('Error Code:', errorDetails.errorCode);
+        console.error('More Info:', errorDetails.moreInformation);
+        console.error('Full Response Body:', JSON.stringify(errorDetails.fullBody, null, 2));
+        console.error('Response Headers:', JSON.stringify(errorDetails.headers, null, 2));
+        console.error('==========================');
+        
+        // Include all details in the thrown error
+        const error = new Error(errorDetails.message || 'DocuSign API Error');
+        error.details = errorDetails;
+        throw error;
       }
 
       console.log(`Envelope created with ID: ${results.envelopeId}`);
