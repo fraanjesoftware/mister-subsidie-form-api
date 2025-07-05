@@ -8,6 +8,7 @@ require('./functions/docusignWebhook');
 require('./functions/debugDocuSign');
 require('./functions/testMinimalEnvelope');
 require('./functions/testDirectPdf');
+require('./functions/testPdfFormIssue');
 
 // You can add more function imports here as you create them
 // require('./functions/anotherFunction');
