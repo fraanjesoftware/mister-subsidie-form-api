@@ -486,6 +486,107 @@ class DocuSignService {
   }
 
   /**
+   * Create an envelope from a template
+   */
+  async createEnvelopeFromTemplate(
+    templateId: string,
+    templateRoles: Array<{
+      email: string;
+      name: string;
+      roleName: string;
+      clientUserId?: string;
+      tabs?: any;
+    }>,
+    customFields?: any,
+    emailSubject?: string,
+    status: string = 'sent'
+  ): Promise<string> {
+    try {
+      const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
+
+      // Create the envelope definition from template
+      const envelopeDefinition = new docusign.EnvelopeDefinition();
+      (envelopeDefinition as any).templateId = templateId;
+      envelopeDefinition.status = status;
+      
+      if (emailSubject) {
+        envelopeDefinition.emailSubject = emailSubject;
+      }
+
+      // Create template roles
+      const templateRolesList = templateRoles.map(role => {
+        const templateRole = new (docusign as any).TemplateRole();
+        templateRole.email = role.email;
+        templateRole.name = role.name;
+        templateRole.roleName = role.roleName;
+        
+        // For embedded signing
+        if (role.clientUserId) {
+          templateRole.clientUserId = role.clientUserId;
+        }
+        
+        // Add tabs if provided (to override template defaults)
+        if (role.tabs) {
+          templateRole.tabs = role.tabs;
+        }
+        
+        return templateRole;
+      });
+
+      (envelopeDefinition as any).templateRoles = templateRolesList;
+
+      // Add custom fields if provided
+      if (customFields) {
+        envelopeDefinition.customFields = customFields;
+      }
+
+      console.log('=== Creating Envelope from Template ===');
+      console.log('Template ID:', templateId);
+      console.log('Template Roles:', templateRolesList.map(r => ({
+        email: r.email,
+        name: r.name,
+        roleName: r.roleName,
+        clientUserId: r.clientUserId
+      })));
+      console.log('Status:', status);
+      console.log('=====================================');
+
+      // Create the envelope
+      const results = await envelopesApi.createEnvelope(this.accountId!, {
+        envelopeDefinition: envelopeDefinition
+      });
+
+      console.log(`Envelope created from template with ID: ${results.envelopeId}`);
+      return results.envelopeId;
+    } catch (error: any) {
+      console.error('Error creating envelope from template:', error);
+      
+      // Extract detailed error information
+      if (error.response) {
+        const errorDetails: DocuSignErrorDetails = {
+          status: error.response?.status || error.status,
+          statusText: error.response?.statusText,
+          message: error.response?.body?.message || error.response?.text || error.message,
+          errorCode: error.response?.body?.errorCode,
+          rawBody: error.response?.text || error.response?.body,
+          headers: error.response?.headers
+        };
+        
+        console.error('=== DocuSign API Error (Template) ===');
+        console.error('Status:', errorDetails.status);
+        console.error('Error Message:', errorDetails.message);
+        console.error('Error Code:', errorDetails.errorCode);
+        console.error('Raw Body:', errorDetails.rawBody);
+        console.error('=====================================');
+        
+        throw new DocuSignError(errorDetails.message || 'Failed to create envelope from template', errorDetails);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
    * Download signed documents from completed envelope
    */
   async downloadSignedDocuments(envelopeId: string): Promise<DownloadedDocument[]> {
