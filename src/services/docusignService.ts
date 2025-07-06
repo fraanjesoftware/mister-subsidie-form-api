@@ -496,10 +496,24 @@ class DocuSignService {
       roleName: string;
       clientUserId?: string;
       tabs?: any;
+      embeddedRecipientStartURL?: string;
     }>,
     customFields?: any,
     emailSubject?: string,
-    status: string = 'sent'
+    status: string = 'sent',
+    notification?: {
+      useAccountDefaults?: boolean;
+      reminders?: {
+        reminderEnabled: string;
+        reminderDelay: string;
+        reminderFrequency: string;
+      };
+      expirations?: {
+        expireEnabled: string;
+        expireAfter: string;
+        expireWarn: string;
+      };
+    }
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
@@ -523,6 +537,11 @@ class DocuSignService {
         // For embedded signing
         if (role.clientUserId) {
           templateRole.clientUserId = role.clientUserId;
+          
+          // Enable email notifications for embedded signers if requested
+          if (role.embeddedRecipientStartURL === 'SIGN_AT_DOCUSIGN') {
+            templateRole.embeddedRecipientStartURL = 'SIGN_AT_DOCUSIGN';
+          }
         }
         
         // Add tabs if provided (to override template defaults)
@@ -538,6 +557,11 @@ class DocuSignService {
       // Add custom fields if provided
       if (customFields) {
         envelopeDefinition.customFields = customFields;
+      }
+      
+      // Add notification settings if provided
+      if (notification) {
+        (envelopeDefinition as any).notification = notification;
       }
 
       console.log('=== Creating Envelope from Template ===');

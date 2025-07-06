@@ -37,6 +37,20 @@ interface TemplateSigningRequest {
   emailSubject?: string;
   customFields?: any;
   forEmbedding?: boolean; // Whether to create embedded signing session
+  sendCompletionEmail?: boolean; // Send completion email to embedded signers
+  notification?: {
+    useAccountDefaults?: boolean;
+    reminders?: {
+      reminderEnabled: string;
+      reminderDelay: string;
+      reminderFrequency: string;
+    };
+    expirations?: {
+      expireEnabled: string;
+      expireAfter: string;
+      expireWarn: string;
+    };
+  };
 }
 
 app.http('createTemplateSigningSession', {
@@ -101,12 +115,14 @@ app.http('createTemplateSigningSession', {
       await docusign.initialize();
       
       // Prepare template roles
-      const templateRoles = requestBody.signers.map(signer => ({
+      const templateRoles = requestBody.signers.map((signer, index) => ({
         email: signer.email,
         name: signer.name,
         roleName: signer.roleName,
-        clientUserId: forEmbedding ? (signer.clientUserId || uuidv4()) : undefined,
-        tabs: signer.tabs // Pass tabs to pre-fill form fields
+        // Only the first signer uses embedded signing when forEmbedding is true
+        clientUserId: (forEmbedding && index === 0) ? (signer.clientUserId || uuidv4()) : undefined,
+        tabs: signer.tabs, // Pass tabs to pre-fill form fields
+        embeddedRecipientStartURL: requestBody.sendCompletionEmail ? 'SIGN_AT_DOCUSIGN' : undefined
       }));
       
       // Create envelope from template
@@ -115,7 +131,8 @@ app.http('createTemplateSigningSession', {
         templateRoles,
         requestBody.customFields,
         requestBody.emailSubject,
-        'sent'
+        'sent',
+        requestBody.notification
       );
       
       context.log('Envelope created from template:', envelopeId);
@@ -151,8 +168,8 @@ app.http('createTemplateSigningSession', {
           clientUserId: clientUserId,
           expiresIn: signingUrl ? 300 : undefined, // 5 minutes for embedded signing
           message: forEmbedding 
-            ? 'Template-based embedded signing session created successfully'
-            : 'Template-based envelope created successfully',
+            ? `Template-based embedded signing session created successfully. First signer will use embedded signing, subsequent signers will receive email notifications.`
+            : 'Template-based envelope created successfully. All signers will receive email notifications.',
           templateId: requestBody.templateId,
           signers: templateRoles.map(role => ({
             email: role.email,

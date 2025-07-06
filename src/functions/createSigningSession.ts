@@ -287,7 +287,7 @@ app.http('createSigningSession', {
       const signers = [{
         email: requestBody.signer.email,
         name: requestBody.signer.name,
-        clientUserId: clientUserId,
+        clientUserId: clientUserId, // Always embedded for single signer
         signatureTabs: signatureTabs,
         dateSignedTabs: dateSignedTabs
       }];
