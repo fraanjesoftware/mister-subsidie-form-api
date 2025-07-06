@@ -6,6 +6,7 @@ import './functions/fillForms';
 import './functions/createSigningSession';
 import './functions/createEmbeddedSigningSession';
 import './functions/createTemplateSigningSession';
+import './functions/getTemplateDetails';
 import './functions/docusignWebhook';
 
 

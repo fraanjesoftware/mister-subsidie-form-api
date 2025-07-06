@@ -587,6 +587,121 @@ class DocuSignService {
   }
 
   /**
+   * Get template details including custom fields and roles
+   */
+  async getTemplateDetails(templateId: string): Promise<any> {
+    try {
+      const templatesApi = new (docusign as any).TemplatesApi(this.apiClient);
+      
+      // Get template information
+      const template = await templatesApi.get(this.accountId!, templateId);
+      
+      // Get template custom fields
+      let customFields;
+      try {
+        customFields = await templatesApi.listCustomFields(this.accountId!, templateId);
+      } catch (error) {
+        console.log('No custom fields found for template');
+        customFields = { textCustomFields: [], listCustomFields: [] };
+      }
+      
+      // Get template recipients (roles)
+      let recipients;
+      try {
+        recipients = await templatesApi.listRecipients(this.accountId!, templateId);
+      } catch (error) {
+        console.log('No recipients found for template');
+        recipients = { signers: [], carbonCopies: [], certifiedDeliveries: [] };
+      }
+      
+      // Get template documents
+      let documents;
+      try {
+        documents = await templatesApi.listDocuments(this.accountId!, templateId);
+      } catch (error) {
+        console.log('No documents found for template');
+        documents = { templateDocuments: [] };
+      }
+      
+      // Extract role names from signers
+      const roles = recipients.signers?.map((signer: any) => ({
+        roleName: signer.roleName,
+        recipientId: signer.recipientId,
+        routingOrder: signer.routingOrder,
+        tabs: signer.tabs
+      })) || [];
+      
+      const result = {
+        templateId: template.templateId,
+        name: template.name,
+        description: template.description,
+        emailSubject: template.emailSubject,
+        emailBlurb: template.emailBlurb,
+        roles: roles,
+        customFields: {
+          textCustomFields: customFields.textCustomFields?.map((field: any) => ({
+            fieldId: field.fieldId,
+            name: field.name,
+            required: field.required,
+            show: field.show,
+            value: field.value
+          })) || [],
+          listCustomFields: customFields.listCustomFields?.map((field: any) => ({
+            fieldId: field.fieldId,
+            name: field.name,
+            required: field.required,
+            listItems: field.listItems,
+            value: field.value
+          })) || []
+        },
+        documents: documents.templateDocuments?.map((doc: any) => ({
+          documentId: doc.documentId,
+          name: doc.name,
+          fileExtension: doc.fileExtension,
+          order: doc.order
+        })) || [],
+        created: template.created,
+        lastModified: template.lastModified,
+        shared: template.shared,
+        folderId: template.folderId,
+        folderName: template.folderName
+      };
+      
+      console.log('Template details retrieved:', {
+        templateId: result.templateId,
+        name: result.name,
+        rolesCount: result.roles.length,
+        customFieldsCount: result.customFields.textCustomFields.length + result.customFields.listCustomFields.length,
+        documentsCount: result.documents.length
+      });
+      
+      return result;
+    } catch (error: any) {
+      console.error('Error getting template details:', error);
+      
+      if (error.response) {
+        const errorDetails: DocuSignErrorDetails = {
+          status: error.response?.status || error.status,
+          statusText: error.response?.statusText,
+          message: error.response?.body?.message || error.response?.text || error.message,
+          errorCode: error.response?.body?.errorCode,
+          rawBody: error.response?.text || error.response?.body,
+          headers: error.response?.headers
+        };
+        
+        console.error('=== DocuSign API Error (Template Details) ===');
+        console.error('Status:', errorDetails.status);
+        console.error('Error Message:', errorDetails.message);
+        console.error('=====================================');
+        
+        throw new DocuSignError(errorDetails.message || 'Failed to get template details', errorDetails);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
    * Download signed documents from completed envelope
    */
   async downloadSignedDocuments(envelopeId: string): Promise<DownloadedDocument[]> {
