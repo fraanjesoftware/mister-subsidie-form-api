@@ -254,8 +254,20 @@ app.http('createSigningSession', {
       // Check if we should use signature anchors
       const useAnchors = formsToProcess.some(form => form.formData.addSignatureAnchors);
       
-      if (!useAnchors) {
-        // Add signature and date tabs for each document
+      if (useAnchors) {
+        // Use anchor-based tabs - DocuSign will find the anchor text in the PDF
+        signatureTabs.push({
+          anchorString: '/sig1/',
+          anchorXOffset: '0',
+          anchorYOffset: '0'
+        });
+        dateSignedTabs.push({
+          anchorString: '/date1/',
+          anchorXOffset: '0',
+          anchorYOffset: '0'
+        });
+      } else {
+        // Use fixed position tabs for each document
         documents.forEach((doc) => {
           signatureTabs.push({
             documentId: doc.documentId,
@@ -271,7 +283,6 @@ app.http('createSigningSession', {
           });
         });
       }
-      // If using anchors, leave tabs arrays empty - DocuSign will use anchor tags
       
       const signers = [{
         email: requestBody.signer.email,
