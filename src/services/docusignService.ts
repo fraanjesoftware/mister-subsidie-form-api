@@ -623,13 +623,101 @@ class DocuSignService {
         documents = { templateDocuments: [] };
       }
       
-      // Extract role names from signers
-      const roles = recipients.signers?.map((signer: any) => ({
-        roleName: signer.roleName,
-        recipientId: signer.recipientId,
-        routingOrder: signer.routingOrder,
-        tabs: signer.tabs
-      })) || [];
+      // Extract role names and tabs from signers
+      const roles = recipients.signers?.map((signer: any) => {
+        // Extract all tab types
+        const tabs = signer.tabs || {};
+        const allTabs: any[] = [];
+        
+        // Text tabs
+        if (tabs.textTabs) {
+          tabs.textTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'text',
+              tabLabel: tab.tabLabel,
+              tabId: tab.tabId,
+              required: tab.required,
+              value: tab.value,
+              locked: tab.locked,
+              width: tab.width,
+              height: tab.height
+            });
+          });
+        }
+        
+        // Checkbox tabs
+        if (tabs.checkboxTabs) {
+          tabs.checkboxTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'checkbox',
+              tabLabel: tab.tabLabel,
+              tabId: tab.tabId,
+              required: tab.required,
+              selected: tab.selected,
+              locked: tab.locked
+            });
+          });
+        }
+        
+        // Radio group tabs
+        if (tabs.radioGroupTabs) {
+          tabs.radioGroupTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'radioGroup',
+              groupName: tab.groupName,
+              radios: tab.radios?.map((radio: any) => ({
+                value: radio.value,
+                selected: radio.selected,
+                required: radio.required
+              }))
+            });
+          });
+        }
+        
+        // List tabs (dropdowns)
+        if (tabs.listTabs) {
+          tabs.listTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'list',
+              tabLabel: tab.tabLabel,
+              tabId: tab.tabId,
+              required: tab.required,
+              value: tab.value,
+              listItems: tab.listItems
+            });
+          });
+        }
+        
+        // Date signed tabs
+        if (tabs.dateSignedTabs) {
+          tabs.dateSignedTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'dateSigned',
+              tabLabel: tab.tabLabel,
+              tabId: tab.tabId
+            });
+          });
+        }
+        
+        // Sign here tabs
+        if (tabs.signHereTabs) {
+          tabs.signHereTabs.forEach((tab: any) => {
+            allTabs.push({
+              type: 'signHere',
+              tabLabel: tab.tabLabel,
+              tabId: tab.tabId,
+              optional: tab.optional
+            });
+          });
+        }
+        
+        return {
+          roleName: signer.roleName,
+          recipientId: signer.recipientId,
+          routingOrder: signer.routingOrder,
+          tabs: allTabs
+        };
+      }) || [];
       
       const result = {
         templateId: template.templateId,

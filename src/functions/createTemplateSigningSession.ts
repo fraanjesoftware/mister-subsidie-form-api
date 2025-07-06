@@ -7,6 +7,27 @@ interface Signer {
   name: string;
   roleName: string; // The role name as defined in the template
   clientUserId?: string;
+  tabs?: {
+    textTabs?: Array<{
+      tabLabel: string;
+      value: string;
+    }>;
+    checkboxTabs?: Array<{
+      tabLabel: string;
+      selected: string; // "true" or "false"
+    }>;
+    radioGroupTabs?: Array<{
+      groupName: string;
+      radios: Array<{
+        value: string;
+        selected: string; // "true" or "false"
+      }>;
+    }>;
+    listTabs?: Array<{
+      tabLabel: string;
+      value: string;
+    }>;
+  };
 }
 
 interface TemplateSigningRequest {
@@ -84,7 +105,8 @@ app.http('createTemplateSigningSession', {
         email: signer.email,
         name: signer.name,
         roleName: signer.roleName,
-        clientUserId: forEmbedding ? (signer.clientUserId || uuidv4()) : undefined
+        clientUserId: forEmbedding ? (signer.clientUserId || uuidv4()) : undefined,
+        tabs: signer.tabs // Pass tabs to pre-fill form fields
       }));
       
       // Create envelope from template

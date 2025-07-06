@@ -59,19 +59,34 @@ app.http('getTemplateDetails', {
           template: templateDetails,
           usage: {
             roles: 'Use these role names in the "roleName" field when creating signing sessions',
-            customFields: 'Use these field names when setting custom field values',
+            customFields: 'Use these field names when setting custom field values (metadata only, not visible to signers)',
+            tabs: 'Use these tab labels to pre-fill form fields that signers will see',
             example: {
               signers: [
                 {
                   email: 'signer@example.com',
                   name: 'John Doe',
-                  roleName: templateDetails.roles[0]?.roleName || 'Signer'
+                  roleName: templateDetails.roles[0]?.roleName || 'Signer',
+                  tabs: templateDetails.roles[0]?.tabs ? {
+                    textTabs: templateDetails.roles[0].tabs
+                      .filter((tab: any) => tab.type === 'text')
+                      .map((tab: any) => ({
+                        tabLabel: tab.tabLabel,
+                        value: 'Your pre-filled value here'
+                      })),
+                    checkboxTabs: templateDetails.roles[0].tabs
+                      .filter((tab: any) => tab.type === 'checkbox')
+                      .map((tab: any) => ({
+                        tabLabel: tab.tabLabel,
+                        selected: 'true'
+                      }))
+                  } : undefined
                 }
               ],
               customFields: {
                 textCustomFields: templateDetails.customFields.textCustomFields.map((field: any) => ({
                   name: field.name,
-                  value: 'Your value here'
+                  value: 'Metadata value (not visible to signers)'
                 }))
               }
             }
