@@ -28,21 +28,6 @@ app.http('createTemplateSigningSession', {
       // Parse request body
       const requestBody = await request.json() as TemplateSigningRequest;
       
-      // Basic validation
-      if (!requestBody.templateId) {
-        return {
-          status: 400,
-          body: JSON.stringify({
-            error: 'Missing templateId',
-            message: 'Please provide a template ID'
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        };
-      }
-      
       if (!requestBody.signers || requestBody.signers.length === 0) {
         return {
           status: 400,
