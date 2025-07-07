@@ -526,6 +526,13 @@ class DocuSignService {
       if (emailSubject) {
         envelopeDefinition.emailSubject = emailSubject;
       }
+      
+      // Configure email settings for completion notifications
+      const emailSettings = new (docusign as any).EmailSettings();
+      emailSettings.replyEmailAddressOverride = process.env.DOCUSIGN_REPLY_EMAIL || '';
+      emailSettings.replyEmailNameOverride = process.env.DOCUSIGN_REPLY_NAME || '';
+      emailSettings.bccEmailAddresses = [];
+      (envelopeDefinition as any).emailSettings = emailSettings;
 
       // Create template roles
       const templateRolesList = templateRoles.map(role => {

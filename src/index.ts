@@ -2,11 +2,7 @@
 // This file ensures all functions are registered when the app starts
 
 // Import all function files
-import './functions/fillForms';
-import './functions/createSigningSession';
-import './functions/createEmbeddedSigningSession';
 import './functions/createTemplateSigningSession';
-import './functions/getTemplateDetails';
 import './functions/docusignWebhook';
 
 

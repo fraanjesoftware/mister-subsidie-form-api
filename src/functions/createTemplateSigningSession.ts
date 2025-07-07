@@ -122,7 +122,8 @@ app.http('createTemplateSigningSession', {
         // Only the first signer uses embedded signing when forEmbedding is true
         clientUserId: (forEmbedding && index === 0) ? (signer.clientUserId || uuidv4()) : undefined,
         tabs: signer.tabs, // Pass tabs to pre-fill form fields
-        embeddedRecipientStartURL: requestBody.sendCompletionEmail ? 'SIGN_AT_DOCUSIGN' : undefined
+        // Enable email notifications for embedded signers (first signer only when forEmbedding is true)
+        embeddedRecipientStartURL: (requestBody.sendCompletionEmail && forEmbedding && index === 0) ? 'SIGN_AT_DOCUSIGN' : undefined
       }));
       
       // Create envelope from template
