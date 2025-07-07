@@ -1,91 +1,27 @@
 import * as docusign from 'docusign-esign';
-import * as crypto from 'crypto';
-
-interface SignatureTab {
-  anchorString?: string;
-  anchorXOffset?: string;
-  anchorYOffset?: string;
-  documentId?: string;
-  pageNumber?: string;
-  xPosition?: string;
-  yPosition?: string;
-}
-
-interface DateSignedTab {
-  anchorString?: string;
-  anchorXOffset?: string;
-  anchorYOffset?: string;
-  documentId?: string;
-  pageNumber?: string;
-  xPosition?: string;
-  yPosition?: string;
-}
-
-interface TextTab {
-  anchorString?: string;
-  anchorXOffset?: string;
-  anchorYOffset?: string;
-  documentId?: string;
-  pageNumber?: string;
-  xPosition?: string;
-  yPosition?: string;
-  value?: string;
-  locked?: boolean;
-}
-
-interface Signer {
-  email: string;
-  name: string;
-  routingOrder?: number;
-  clientUserId?: string;
-  signatureTabs?: SignatureTab[];
-  dateSignedTabs?: DateSignedTab[];
-  textTabs?: TextTab[];
-}
-
-interface Document {
-  name: string;
-  base64: string;
-}
-
-interface EnvelopeOptions {
-  emailSubject?: string;
-  emailMessage?: string;
-  documents: Document[];
-  signers: Signer[];
-  customFields?: any;
-  status?: string;
-}
-
-interface DownloadedDocument {
-  documentId: string;
-  name: string;
-  pdfBytes: any;
-}
-
-interface EnvelopeDetails {
-  envelope: any;
-  customFields: any;
-}
-
-interface DocuSignErrorDetails {
-  status?: number;
-  statusText?: string;
-  message?: string;
-  errorCode?: string;
-  rawBody?: any;
-  headers?: any;
-}
-
-class DocuSignError extends Error {
-  details?: DocuSignErrorDetails;
-  
-  constructor(message: string, details?: DocuSignErrorDetails) {
-    super(message);
-    this.name = 'DocuSignError';
-    this.details = details;
-  }
-}
+import { DOCUSIGN_CONSTANTS } from '../constants/docusign';
+import { 
+  EnvelopeOptions, 
+  Document, 
+  Signer, 
+  DownloadedDocument, 
+  EnvelopeDetails,
+  TemplateRole,
+  NotificationConfig
+} from '../types/docusign';
+import { handleDocuSignError } from '../errors/DocuSignError';
+import { 
+  formatRSAPrivateKey, 
+  validateWebhookSignature, 
+  logEnvelopeDetails,
+  getAllowedOrigins,
+  getPrimaryOrigin
+} from '../utils/docusignHelpers';
+import {
+  createSignatureTabs,
+  createDateSignedTabs,
+  createTextTabs
+} from '../utils/docusignTabFactory';
 
 class DocuSignService {
   private apiClient: docusign.ApiClient;
@@ -104,35 +40,20 @@ class DocuSignService {
   async initialize(): Promise<boolean> {
     try {
       // Set the base path (demo or production)
-      this.basePath = process.env.DOCUSIGN_BASE_URL || 'https://demo.docusign.net/restapi';
+      this.basePath = process.env.DOCUSIGN_BASE_URL || DOCUSIGN_CONSTANTS.DEFAULT_BASE_URL;
       this.apiClient.setBasePath(this.basePath);
 
       // Configure JWT auth
-      let privateKey = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
-      if (!privateKey) {
-        throw new Error('DOCUSIGN_RSA_PRIVATE_KEY environment variable not set');
+      const privateKeyRaw = process.env.DOCUSIGN_RSA_PRIVATE_KEY;
+      if (!privateKeyRaw) {
+        throw new Error(DOCUSIGN_CONSTANTS.ERRORS.MISSING_PRIVATE_KEY);
       }
       
-      // Handle Azure environment variables where \n is stored as literal string
-      if (privateKey.includes('\\n')) {
-        // Replace literal \n with actual newlines
-        privateKey = privateKey.replace(/\\n/g, '\n');
-      }
-      
-      // If still a single line, format it properly
-      if (privateKey.includes('BEGIN') && privateKey.split('\n').length < 3) {
-        // Extract the base64 content between the markers
-        const match = privateKey.match(/-----BEGIN RSA PRIVATE KEY-----\s*(.+?)\s*-----END RSA PRIVATE KEY-----/);
-        if (match && match[1]) {
-          const base64Content = match[1].trim();
-          // Split into 64-character lines as required by PEM format
-          const lines = base64Content.match(/.{1,64}/g) || [];
-          privateKey = `-----BEGIN RSA PRIVATE KEY-----\n${lines.join('\n')}\n-----END RSA PRIVATE KEY-----`;
-        }
-      }
+      // Use the utility method to format the private key
+      const privateKey = formatRSAPrivateKey(privateKeyRaw);
 
-      const jwtLifeSec = 3600; // 1 hour
-      const scopes = ['signature', 'impersonation'];
+      const jwtLifeSec = DOCUSIGN_CONSTANTS.JWT_LIFETIME;
+      const scopes = DOCUSIGN_CONSTANTS.SCOPES;
 
       // Get JWT token
       let results: any;
@@ -177,6 +98,89 @@ class DocuSignService {
   }
 
   /**
+   * Prepare documents for envelope (extracted for testability)
+   */
+  private prepareDocuments(documents: Document[]): any[] {
+    return documents.map((doc, index) => {
+      console.log(`Document ${index + 1}: name=${doc.name}, base64 exists=${!!doc.base64}, base64 length=${doc.base64?.length || 0}`);
+      return {
+        documentBase64: doc.base64,
+        name: doc.name,
+        fileExtension: DOCUSIGN_CONSTANTS.DEFAULT_FILE_EXTENSION,
+        documentId: String(index + 1)
+      };
+    });
+  }
+
+  /**
+   * Prepare signers for envelope (extracted for testability)
+   */
+  private prepareSigners(signers: Signer[]): any[] {
+    return signers.map((signer, index) => {
+      const docusignSigner = new docusign.Signer();
+      docusignSigner.email = signer.email;
+      docusignSigner.name = signer.name;
+      docusignSigner.recipientId = String(index + 1);
+      docusignSigner.routingOrder = String(signer.routingOrder || DOCUSIGN_CONSTANTS.DEFAULT_ROUTING_ORDER);
+      
+      // For embedded signing
+      if (signer.clientUserId) {
+        docusignSigner.clientUserId = signer.clientUserId;
+      }
+
+      // Add tabs (signature locations)
+      const tabs = new docusign.Tabs();
+      
+      // Use the tab factory methods
+      if (signer.signatureTabs) {
+        tabs.signHereTabs = createSignatureTabs(signer.signatureTabs);
+      }
+
+      if (signer.dateSignedTabs) {
+        tabs.dateSignedTabs = createDateSignedTabs(signer.dateSignedTabs);
+      }
+
+      if (signer.textTabs) {
+        tabs.textTabs = createTextTabs(signer.textTabs);
+      }
+
+      docusignSigner.tabs = tabs;
+      return docusignSigner;
+    });
+  }
+
+  /**
+   * Create envelope definition (extracted for testability)
+   */
+  private createEnvelopeDefinition(
+    emailSubject: string | undefined,
+    emailMessage: string | undefined,
+    documents: any[],
+    signers: any[],
+    customFields: any,
+    status: string
+  ): any {
+    const envelopeDefinition = new docusign.EnvelopeDefinition();
+    envelopeDefinition.emailSubject = emailSubject || DOCUSIGN_CONSTANTS.DEFAULT_EMAIL_SUBJECT;
+    envelopeDefinition.emailBlurb = emailMessage || DOCUSIGN_CONSTANTS.DEFAULT_EMAIL_MESSAGE;
+    envelopeDefinition.documents = documents;
+    
+    // Create recipients object
+    const recipients = new docusign.Recipients();
+    recipients.signers = signers;
+    envelopeDefinition.recipients = recipients;
+    
+    envelopeDefinition.status = status;
+    
+    // Add custom fields if provided
+    if (customFields) {
+      envelopeDefinition.customFields = customFields;
+    }
+    
+    return envelopeDefinition;
+  }
+
+  /**
    * Create an envelope with documents for signing
    */
   async createEnvelope(options: EnvelopeOptions): Promise<string> {
@@ -186,151 +190,31 @@ class DocuSignService {
       documents,
       signers,
       customFields,
-      status = 'sent'
+      status = DOCUSIGN_CONSTANTS.DEFAULT_ENVELOPE_STATUS
     } = options;
 
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
 
-      // Create the envelope definition
-      const envelopeDefinition = new docusign.EnvelopeDefinition();
-      envelopeDefinition.emailSubject = emailSubject || 'Please sign your subsidy forms';
-      envelopeDefinition.emailBlurb = emailMessage || 'Please review and sign the attached documents.';
-
-      // Add documents
-      envelopeDefinition.documents = documents.map((doc, index) => {
-        console.log(`Document ${index + 1}: name=${doc.name}, base64 exists=${!!doc.base64}, base64 length=${doc.base64?.length || 0}`);
-        return {
-          documentBase64: doc.base64,
-          name: doc.name,
-          fileExtension: 'pdf',
-          documentId: String(index + 1)
-        };
-      });
-
-      // Create signers with tabs
-      const signersList = signers.map((signer, index) => {
-        const docusignSigner = new docusign.Signer();
-        docusignSigner.email = signer.email;
-        docusignSigner.name = signer.name;
-        docusignSigner.recipientId = String(index + 1);
-        docusignSigner.routingOrder = String(signer.routingOrder || 1);
-        
-        // For embedded signing
-        if (signer.clientUserId) {
-          docusignSigner.clientUserId = signer.clientUserId;
-        }
-
-        // Add tabs (signature locations)
-        const tabs = new docusign.Tabs();
-        
-        // Signature tabs
-        if (signer.signatureTabs) {
-          tabs.signHereTabs = signer.signatureTabs.map(tab => {
-            const signHere = new docusign.SignHere();
-            
-            // Use anchor text if provided
-            if (tab.anchorString) {
-              signHere.anchorString = tab.anchorString;
-              signHere.anchorUnits = 'pixels';
-              signHere.anchorXOffset = tab.anchorXOffset || '0';
-              signHere.anchorYOffset = tab.anchorYOffset || '0';
-            } else {
-              // Use absolute positioning
-              signHere.documentId = tab.documentId;
-              signHere.pageNumber = tab.pageNumber;
-              signHere.xPosition = tab.xPosition;
-              signHere.yPosition = tab.yPosition;
-            }
-            
-            return signHere;
-          });
-        }
-
-        // Date signed tabs
-        if (signer.dateSignedTabs) {
-          tabs.dateSignedTabs = signer.dateSignedTabs.map(tab => {
-            const dateSigned = new docusign.DateSigned();
-            
-            if (tab.anchorString) {
-              dateSigned.anchorString = tab.anchorString;
-              dateSigned.anchorUnits = 'pixels';
-              dateSigned.anchorXOffset = tab.anchorXOffset || '0';
-              dateSigned.anchorYOffset = tab.anchorYOffset || '0';
-            } else {
-              dateSigned.documentId = tab.documentId;
-              dateSigned.pageNumber = tab.pageNumber;
-              dateSigned.xPosition = tab.xPosition;
-              dateSigned.yPosition = tab.yPosition;
-            }
-            
-            return dateSigned;
-          });
-        }
-
-        // Text tabs for additional fields
-        if (signer.textTabs) {
-          tabs.textTabs = signer.textTabs.map(tab => {
-            const text = new docusign.Text();
-            
-            if (tab.anchorString) {
-              text.anchorString = tab.anchorString;
-              text.anchorUnits = 'pixels';
-              text.anchorXOffset = tab.anchorXOffset || '0';
-              text.anchorYOffset = tab.anchorYOffset || '0';
-            } else {
-              text.documentId = tab.documentId;
-              text.pageNumber = tab.pageNumber;
-              text.xPosition = tab.xPosition;
-              text.yPosition = tab.yPosition;
-            }
-            
-            text.value = tab.value || '';
-            text.locked = tab.locked || false;
-            
-            return text;
-          });
-        }
-
-        docusignSigner.tabs = tabs;
-        return docusignSigner;
-      });
-
-      // Create recipients object
-      const recipients = new docusign.Recipients();
-      recipients.signers = signersList;
-
-      envelopeDefinition.recipients = recipients;
-      envelopeDefinition.status = status;
-
-      // Add custom fields if provided
-      if (customFields) {
-        envelopeDefinition.customFields = customFields;
-      }
+      // Use extracted methods for better testability and maintainability
+      const preparedDocuments = this.prepareDocuments(documents);
+      const preparedSigners = this.prepareSigners(signers);
+      const envelopeDefinition = this.createEnvelopeDefinition(
+        emailSubject,
+        emailMessage,
+        preparedDocuments,
+        preparedSigners,
+        customFields,
+        status
+      );
 
       // Log what we're sending
-      console.log('=== Sending to DocuSign ===');
-      console.log('Account ID:', this.accountId);
-      console.log('Email Subject:', envelopeDefinition.emailSubject);
-      console.log('Number of Documents:', envelopeDefinition.documents.length);
-      console.log('Documents:', envelopeDefinition.documents.map((d: any) => ({
-        name: d.name,
-        documentId: d.documentId,
-        fileExtension: d.fileExtension,
-        base64Length: d.documentBase64?.length || 0
-      })));
-      console.log('Number of Signers:', recipients.signers.length);
-      console.log('Signers:', recipients.signers.map((s: any) => ({
-        email: s.email,
-        name: s.name,
-        recipientId: s.recipientId,
-        clientUserId: s.clientUserId,
-        tabs: {
-          signHereTabs: s.tabs?.signHereTabs?.length || 0,
-          dateSignedTabs: s.tabs?.dateSignedTabs?.length || 0
-        }
-      })));
-      console.log('==========================');
+      logEnvelopeDetails(
+        this.accountId,
+        envelopeDefinition.emailSubject,
+        preparedDocuments,
+        preparedSigners
+      );
       
       // Send the envelope
       let results: any;
@@ -339,7 +223,7 @@ class DocuSignService {
           envelopeDefinition: envelopeDefinition
         });
       } catch (apiError: any) {
-        // Log the raw error first
+        // Log the raw error first for debugging
         console.error('=== Raw DocuSign Error ===');
         console.error('Error object keys:', Object.keys(apiError));
         console.error('Response exists:', !!apiError.response);
@@ -350,37 +234,8 @@ class DocuSignService {
           console.error('Response data:', apiError.response.data);
         }
         
-        // Extract detailed error information
-        const errorDetails: DocuSignErrorDetails = {
-          status: apiError.response?.status || apiError.status,
-          statusText: apiError.response?.statusText,
-          message: apiError.response?.body?.message || apiError.response?.text || apiError.message,
-          errorCode: apiError.response?.body?.errorCode,
-          rawBody: apiError.response?.text || apiError.response?.body,
-          headers: apiError.response?.headers
-        };
-        
-        console.error('=== DocuSign API Error ===');
-        console.error('Status:', errorDetails.status);
-        console.error('Status Text:', errorDetails.statusText);
-        console.error('Error Message:', errorDetails.message);
-        console.error('Error Code:', errorDetails.errorCode);
-        console.error('Raw Body:', errorDetails.rawBody);
-        console.error('Response Headers:', JSON.stringify(errorDetails.headers, null, 2));
-        
-        // Try to parse the error if it's a string
-        if (typeof errorDetails.rawBody === 'string') {
-          try {
-            const parsed = JSON.parse(errorDetails.rawBody);
-            console.error('Parsed Error:', JSON.stringify(parsed, null, 2));
-          } catch (e) {
-            console.error('Could not parse error body as JSON');
-          }
-        }
-        console.error('==========================');
-        
-        // Include all details in the thrown error
-        throw new DocuSignError(errorDetails.message || 'DocuSign API Error', errorDetails);
+        // Use the utility method for consistent error handling
+        throw handleDocuSignError(apiError, 'Create Envelope');
       }
 
       console.log(`Envelope created with ID: ${results.envelopeId}`);
@@ -407,27 +262,15 @@ class DocuSignService {
 
       const viewRequest = new docusign.RecipientViewRequest();
       viewRequest.returnUrl = returnUrl;
-      viewRequest.authenticationMethod = 'none';
+      viewRequest.authenticationMethod = DOCUSIGN_CONSTANTS.DEFAULT_AUTH_METHOD;
       viewRequest.email = signerEmail;
       viewRequest.userName = signerName;
       viewRequest.clientUserId = clientUserId;
       
       // Add frame ancestors and message origins for iframe embedding
       if (forEmbedding) {
-        // Get allowed origins from environment variables
-        const allowedOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
-          'http://localhost:5173',
-          'https://purple-dune-0613f4303.1.azurestaticapps.net'
-        ];
-        
-        // Determine the primary origin based on environment
-        // In production, use the Azure Static Web App URL; in development, use localhost
-        const primaryOrigin = process.env.NODE_ENV === 'production' 
-          ? 'https://purple-dune-0613f4303.1.azurestaticapps.net'
-          : 'http://localhost:5173';
-        
-        // If a specific primary origin is set in environment variables, use that
-        const messageOrigin = process.env.DOCUSIGN_PRIMARY_ORIGIN || primaryOrigin;
+        const allowedOrigins = getAllowedOrigins();
+        const messageOrigin = getPrimaryOrigin();
         
         console.log('Setting iframe embedding configuration:', {
           frameAncestors: allowedOrigins,
@@ -460,25 +303,9 @@ class DocuSignService {
     } catch (error: any) {
       console.error('Error getting embedded signing URL:', error);
       
-      // Extract detailed error information
+      // Use the utility method for consistent error handling
       if (error.response) {
-        const errorDetails: DocuSignErrorDetails = {
-          status: error.response?.status || error.status,
-          statusText: error.response?.statusText,
-          message: error.response?.body?.message || error.response?.text || error.message,
-          errorCode: error.response?.body?.errorCode,
-          rawBody: error.response?.text || error.response?.body,
-          headers: error.response?.headers
-        };
-        
-        console.error('=== DocuSign API Error (Recipient View) ===');
-        console.error('Status:', errorDetails.status);
-        console.error('Error Message:', errorDetails.message);
-        console.error('Error Code:', errorDetails.errorCode);
-        console.error('Raw Body:', errorDetails.rawBody);
-        console.error('==========================================');
-        
-        throw new DocuSignError(errorDetails.message || 'Failed to create recipient view', errorDetails);
+        throw handleDocuSignError(error, 'Recipient View');
       }
       
       throw error;
@@ -490,30 +317,11 @@ class DocuSignService {
    */
   async createEnvelopeFromTemplate(
     templateId: string,
-    templateRoles: Array<{
-      email: string;
-      name: string;
-      roleName: string;
-      clientUserId?: string;
-      tabs?: any;
-      embeddedRecipientStartURL?: string;
-    }>,
+    templateRoles: TemplateRole[],
     customFields?: any,
     emailSubject?: string,
     status: string = 'sent',
-    notification?: {
-      useAccountDefaults?: boolean;
-      reminders?: {
-        reminderEnabled: string;
-        reminderDelay: string;
-        reminderFrequency: string;
-      };
-      expirations?: {
-        expireEnabled: string;
-        expireAfter: string;
-        expireWarn: string;
-      };
-    }
+    notification?: NotificationConfig
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
@@ -592,25 +400,9 @@ class DocuSignService {
     } catch (error: any) {
       console.error('Error creating envelope from template:', error);
       
-      // Extract detailed error information
+      // Use the utility method for consistent error handling
       if (error.response) {
-        const errorDetails: DocuSignErrorDetails = {
-          status: error.response?.status || error.status,
-          statusText: error.response?.statusText,
-          message: error.response?.body?.message || error.response?.text || error.message,
-          errorCode: error.response?.body?.errorCode,
-          rawBody: error.response?.text || error.response?.body,
-          headers: error.response?.headers
-        };
-        
-        console.error('=== DocuSign API Error (Template) ===');
-        console.error('Status:', errorDetails.status);
-        console.error('Error Message:', errorDetails.message);
-        console.error('Error Code:', errorDetails.errorCode);
-        console.error('Raw Body:', errorDetails.rawBody);
-        console.error('=====================================');
-        
-        throw new DocuSignError(errorDetails.message || 'Failed to create envelope from template', errorDetails);
+        throw handleDocuSignError(error, 'Template Envelope');
       }
       
       throw error;
@@ -799,21 +591,7 @@ class DocuSignService {
       console.error('Error getting template details:', error);
       
       if (error.response) {
-        const errorDetails: DocuSignErrorDetails = {
-          status: error.response?.status || error.status,
-          statusText: error.response?.statusText,
-          message: error.response?.body?.message || error.response?.text || error.message,
-          errorCode: error.response?.body?.errorCode,
-          rawBody: error.response?.text || error.response?.body,
-          headers: error.response?.headers
-        };
-        
-        console.error('=== DocuSign API Error (Template Details) ===');
-        console.error('Status:', errorDetails.status);
-        console.error('Error Message:', errorDetails.message);
-        console.error('=====================================');
-        
-        throw new DocuSignError(errorDetails.message || 'Failed to get template details', errorDetails);
+        throw handleDocuSignError(error, 'Template Details');
       }
       
       throw error;
@@ -895,14 +673,45 @@ class DocuSignService {
   }
 
   /**
-   * Validate webhook notification
+   * Validate webhook notification - static method
    */
   static validateWebhookSignature(payload: string, signature: string, secret: string): boolean {
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(payload);
-    const computedSignature = hmac.digest('base64');
-    return computedSignature === signature;
+    return validateWebhookSignature(payload, signature, secret);
   }
+
+  /**
+   * Static helper methods for backward compatibility
+   */
+  static handleDocuSignError = handleDocuSignError;
+  static createTabWithAnchor = (config: any) => {
+    // Import from tab factory for backward compatibility
+    const { createTabWithAnchor } = require('../utils/docusignTabFactory');
+    return createTabWithAnchor(config);
+  };
+  static createTabWithPosition = (config: any) => {
+    // Import from tab factory for backward compatibility
+    const { createTabWithPosition } = require('../utils/docusignTabFactory');
+    return createTabWithPosition(config);
+  };
+  static formatRSAPrivateKey = formatRSAPrivateKey;
 }
 
 export default DocuSignService;
+
+// Re-export types for backward compatibility
+export type {
+  BaseTab,
+  SignatureTab,
+  DateSignedTab,
+  TextTab,
+  Signer,
+  Document,
+  EnvelopeOptions,
+  DownloadedDocument,
+  EnvelopeDetails,
+  DocuSignErrorDetails,
+  TemplateRole,
+  NotificationConfig
+} from '../types/docusign';
+
+export { DocuSignError } from '../errors/DocuSignError';
