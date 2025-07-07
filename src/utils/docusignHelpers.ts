@@ -80,8 +80,7 @@ export function getAllowedOrigins(): string[] {
   const customOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
     'http://localhost:5173',
     'https://localhost:5173',  
-    'https://purple-dune-0613f4303.1.azurestaticapps.net',
-    'https://apps-d.docusign.com'
+    'https://purple-dune-0613f4303.1.azurestaticapps.net'
   ];
   
   // Add DocuSign domain for Focused View
@@ -89,7 +88,9 @@ export function getAllowedOrigins(): string[] {
     ? 'https://apps.docusign.com'
     : 'https://apps-d.docusign.com';
   
-  return [...customOrigins, docusignDomain];
+  // Use Set to avoid duplicates
+  const allOrigins = new Set([...customOrigins, docusignDomain]);
+  return Array.from(allOrigins);
 }
 
 /**
@@ -124,11 +125,11 @@ export function getFocusedViewFrameAncestors(): string[] {
     'http://localhost:5173',
     'https://localhost:5173',
     'https://purple-dune-0613f4303.1.azurestaticapps.net',
-    'https://apps-d.docusign.com'
   ];
   
   // Always include DocuSign domain for Focused View
-  return [...appOrigins, getDocuSignDomain()];
+  const allOrigins = new Set([...appOrigins, getDocuSignDomain()]);
+  return Array.from(allOrigins);
 }
 
 /**

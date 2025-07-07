@@ -146,17 +146,20 @@ app.http('createTemplateSigningSession', {
         const firstSigner = requestBody.signers[0];
         clientUserId = templateRoles[0].clientUserId;
         
-        // Get embedded signing URL
-        signingUrl = await docusign.getEmbeddedSigningUrl(
+        // Get signing URL (redirect flow)
+        // DocuSign will redirect back to returnUrl with event parameters:
+        // - Success: returnUrl?docusign=callback&event=signing_complete
+        // - Cancel: returnUrl?docusign=callback&event=cancel
+        // - Decline: returnUrl?docusign=callback&event=decline
+        signingUrl = await docusign.getSigningUrl(
           envelopeId,
           firstSigner.email,
           firstSigner.name,
           clientUserId!,
-          requestBody.returnUrl,
-          true // forEmbedding = true for iframe support
+          requestBody.returnUrl
         );
         
-        context.log('Embedded signing URL generated for template-based envelope');
+        context.log('Signing URL generated for template-based envelope (redirect flow)');
       }
       
       // Return success response with CORS headers
@@ -167,9 +170,9 @@ app.http('createTemplateSigningSession', {
           envelopeId: envelopeId,
           signingUrl: signingUrl,
           clientUserId: clientUserId,
-          expiresIn: signingUrl ? 300 : undefined, // 5 minutes for embedded signing
+          expiresIn: signingUrl ? 300 : undefined, // 5 minutes
           message: forEmbedding 
-            ? `Template-based embedded signing session created successfully. First signer will use embedded signing, subsequent signers will receive email notifications.`
+            ? `Template-based signing session created successfully. First signer will be redirected to DocuSign, subsequent signers will receive email notifications.`
             : 'Template-based envelope created successfully. All signers will receive email notifications.',
           templateId: requestBody.templateId,
           signers: templateRoles.map(role => ({

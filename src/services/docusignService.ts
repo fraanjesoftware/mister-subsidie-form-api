@@ -13,9 +13,7 @@ import { handleDocuSignError } from '../errors/DocuSignError';
 import { 
   formatRSAPrivateKey, 
   validateWebhookSignature, 
-  logEnvelopeDetails,
-  getAllowedOrigins,
-  getPrimaryOrigin
+  logEnvelopeDetails
 } from '../utils/docusignHelpers';
 import {
   createSignatureTabs,
@@ -247,15 +245,16 @@ class DocuSignService {
   }
 
   /**
-   * Get embedded signing URL for a recipient
+   * Get signing URL for a recipient (redirect flow)
+   * Note: This method supports both embedded and redirect flows
+   * For redirect flow, DocuSign will redirect back to returnUrl with event parameters
    */
-  async getEmbeddedSigningUrl(
+  async getSigningUrl(
     envelopeId: string,
     signerEmail: string,
     signerName: string,
     clientUserId: string,
-    returnUrl: string,
-    forEmbedding: boolean = false
+    returnUrl: string
   ): Promise<string> {
     try {
       const envelopesApi = new docusign.EnvelopesApi(this.apiClient);
@@ -267,19 +266,8 @@ class DocuSignService {
       viewRequest.userName = signerName;
       viewRequest.clientUserId = clientUserId;
       
-      // Add frame ancestors and message origins for iframe embedding
-      if (forEmbedding) {
-        const allowedOrigins = getAllowedOrigins();
-        const messageOrigin = getPrimaryOrigin();
-        
-        console.log('Setting iframe embedding configuration:', {
-          frameAncestors: allowedOrigins,
-          messageOrigins: [messageOrigin] // Only one origin allowed
-        });
-        
-        viewRequest.frameAncestors = allowedOrigins; // Can have multiple
-        viewRequest.messageOrigins = [messageOrigin]; // Only one allowed
-      }
+      // Note: frameAncestors and messageOrigins are not set for redirect flow
+      // This avoids CSP issues and simplifies the implementation
 
       console.log('Creating recipient view with request:', {
         envelopeId,
@@ -287,9 +275,7 @@ class DocuSignService {
         email: viewRequest.email,
         userName: viewRequest.userName,
         clientUserId: viewRequest.clientUserId,
-        forEmbedding,
-        frameAncestors: viewRequest.frameAncestors,
-        messageOrigins: viewRequest.messageOrigins
+        returnUrl: viewRequest.returnUrl
       });
 
       const results = await envelopesApi.createRecipientView(
@@ -301,7 +287,7 @@ class DocuSignService {
       console.log('Recipient view created successfully, URL:', results.url);
       return results.url;
     } catch (error: any) {
-      console.error('Error getting embedded signing URL:', error);
+      console.error('Error getting signing URL:', error);
       
       // Use the utility method for consistent error handling
       if (error.response) {
@@ -310,6 +296,23 @@ class DocuSignService {
       
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Use getSigningUrl instead
+   * Get embedded signing URL for a recipient
+   */
+  async getEmbeddedSigningUrl(
+    envelopeId: string,
+    signerEmail: string,
+    signerName: string,
+    clientUserId: string,
+    returnUrl: string,
+    _forEmbedding?: boolean // Made optional and unused (prefix with _ to indicate intentionally unused)
+  ): Promise<string> {
+    // For backward compatibility, just call the new method
+    // The forEmbedding parameter is ignored as we now use redirect flow
+    return this.getSigningUrl(envelopeId, signerEmail, signerName, clientUserId, returnUrl);
   }
 
   /**
