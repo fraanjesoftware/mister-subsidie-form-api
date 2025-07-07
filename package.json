@@ -5,7 +5,7 @@
   "scripts": {
     "prestart": "npm run build",
     "start": "func start --typescript",
-    "build": "tsc && cp -r src/pdfs dist/",
+    "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
