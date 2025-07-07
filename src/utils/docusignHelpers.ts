@@ -79,6 +79,7 @@ export function logEnvelopeDetails(
 export function getAllowedOrigins(): string[] {
   const customOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
     'http://localhost:5173',
+    'https://localhost:5173',  
     'https://purple-dune-0613f4303.1.azurestaticapps.net'
   ];
   
