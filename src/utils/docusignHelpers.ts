@@ -77,21 +77,60 @@ export function logEnvelopeDetails(
  * Get allowed origins for iframe embedding
  */
 export function getAllowedOrigins(): string[] {
-  return process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
+  const customOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
     'http://localhost:5173',
     'https://purple-dune-0613f4303.1.azurestaticapps.net'
   ];
+  
+  // Add DocuSign domain for Focused View
+  const docusignDomain = process.env.NODE_ENV === 'production' 
+    ? 'https://apps.docusign.com'
+    : 'https://apps-d.docusign.com';
+  
+  return [...customOrigins, docusignDomain];
 }
 
 /**
  * Get primary origin for message origins
+ * For Focused View, this should be the DocuSign domain
  */
 export function getPrimaryOrigin(): string {
-  // Determine the primary origin based on environment
-  const primaryOrigin = process.env.NODE_ENV === 'production' 
-    ? 'https://purple-dune-0613f4303.1.azurestaticapps.net'
-    : 'http://localhost:5173';
+  // For Focused View, messageOrigins should be the DocuSign domain
+  const docusignDomain = process.env.NODE_ENV === 'production' 
+    ? 'https://apps.docusign.com'
+    : 'https://apps-d.docusign.com';
   
-  // If a specific primary origin is set in environment variables, use that
-  return process.env.DOCUSIGN_PRIMARY_ORIGIN || primaryOrigin;
+  // Allow override via environment variable if needed
+  return process.env.DOCUSIGN_PRIMARY_ORIGIN || docusignDomain;
+}
+
+/**
+ * Get DocuSign domain based on environment
+ */
+export function getDocuSignDomain(): string {
+  return process.env.NODE_ENV === 'production' 
+    ? 'https://apps.docusign.com'
+    : 'https://apps-d.docusign.com';
+}
+
+/**
+ * Get frame ancestors for Focused View
+ * Includes both app origins and DocuSign domain
+ */
+export function getFocusedViewFrameAncestors(): string[] {
+  const appOrigins = process.env.DOCUSIGN_ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
+    'http://localhost:5173',
+    'https://purple-dune-0613f4303.1.azurestaticapps.net'
+  ];
+  
+  // Always include DocuSign domain for Focused View
+  return [...appOrigins, getDocuSignDomain()];
+}
+
+/**
+ * Get message origins for Focused View
+ * Should only include DocuSign domain
+ */
+export function getFocusedViewMessageOrigins(): string[] {
+  return [getDocuSignDomain()];
 }

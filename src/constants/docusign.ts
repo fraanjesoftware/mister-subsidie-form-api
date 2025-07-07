@@ -23,7 +23,7 @@ export const DOCUSIGN_CONSTANTS = {
   
   // Recipient Configuration
   DEFAULT_ROUTING_ORDER: 1,
-  DEFAULT_AUTH_METHOD: 'none',
+  DEFAULT_AUTH_METHOD: 'email',
   
   // Signing Configuration
   DEFAULT_ENVELOPE_STATUS: 'sent',
@@ -38,3 +38,39 @@ export const DOCUSIGN_CONSTANTS = {
     PRIVATE_KEY_REQUIRED: 'Private key is required'
   }
 } as const;
+
+/**
+ * DocuSign Focused View Configuration Guide
+ * 
+ * For Focused View (JavaScript SDK) integration:
+ * 
+ * 1. frameAncestors must include:
+ *    - Your application domain(s)
+ *    - DocuSign domain (apps-d.docusign.com for dev, apps.docusign.com for prod)
+ * 
+ * 2. messageOrigins must include:
+ *    - ONLY the DocuSign domain
+ * 
+ * 3. authenticationMethod should be 'email'
+ * 
+ * 4. clientUserId must be set for embedded signing
+ * 
+ * Example frontend usage:
+ * ```javascript
+ * import { DocuSign } from '@docusign/docusign-js-sdk';
+ * 
+ * const docusign = new DocuSign({
+ *   integratorKey: 'YOUR_INTEGRATION_KEY',
+ *   environment: 'demo', // or 'production'
+ * });
+ * 
+ * await docusign.loadDocuSign();
+ * const signing = docusign.signing({
+ *   url: signingUrl, // URL from backend
+ *   displayFormat: 'focused', // Use focused view
+ *   style: {
+ *     branding: { primaryButton: { backgroundColor: '#333' } }
+ *   }
+ * });
+ * ```
+ */
