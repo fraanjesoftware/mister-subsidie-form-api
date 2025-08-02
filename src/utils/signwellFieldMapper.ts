@@ -83,9 +83,42 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   // List of conditional fields that should get a space if empty
   const conditionalFields = ['minimis-2.1', 'minimis-3.1', 'minimis-3.2'];
   
+  // List of fields that actually exist in the SignWell template
+  const validTemplateFields = [
+    // Text fields from template
+    'bedrijfsnaam', 'bedrijfsnaam_2', 'bedrijfsnaam_3',
+    'kvk', 'kvk_2',
+    'onderneming-adres',
+    'postcode',
+    'plaats', 'plaats_2',
+    'nace',
+    'voorletters-tekenbevoegde',
+    'achternaam-tekenbevoegde',
+    'functie', 'functie_2',
+    'fte',
+    'jaaromzet',
+    'balanstotaal',
+    'boekjaar',
+    'minimis-2.1',
+    'minimis-3.1',
+    'minimis-3.2',
+    // Checkbox fields
+    'geen', 'wel', 'andere',
+    'kleine', 'middel', 'grote',
+    // Autofill fields
+    'Name_1',
+    'Email_1'
+  ];
+  
   // Map text tabs
   if (tabs.textTabs) {
     tabs.textTabs.forEach(tab => {
+      // Only process fields that exist in the template
+      if (!validTemplateFields.includes(tab.tabLabel)) {
+        console.log(`Skipping field '${tab.tabLabel}' - not in template`);
+        return;
+      }
+      
       let value = tab.value;
       
       // For conditional fields, if empty or undefined, use a space
@@ -115,6 +148,12 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   if (tabs.radioGroupTabs) {
     tabs.radioGroupTabs.forEach(group => {
       group.radios.forEach(radio => {
+        // Only process checkbox fields that exist in the template
+        if (!validTemplateFields.includes(radio.value)) {
+          console.log(`Skipping checkbox '${radio.value}' - not in template`);
+          return;
+        }
+        
         fieldValues[radio.value] = radio.selected;
         templateFields.push({
           api_id: radio.value,
@@ -127,6 +166,12 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   // Map list tabs (dropdowns)
   if (tabs.listTabs) {
     tabs.listTabs.forEach(tab => {
+      // Only process fields that exist in the template
+      if (!validTemplateFields.includes(tab.tabLabel)) {
+        console.log(`Skipping list field '${tab.tabLabel}' - not in template`);
+        return;
+      }
+      
       fieldValues[tab.tabLabel] = tab.value;
       templateFields.push({
         api_id: tab.tabLabel,
@@ -157,14 +202,15 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   });
   
   // Handle autofill fields that exist in the template
-  // Name_1 is an autofill field but we can populate it from naam field
-  const nameValue = fieldValues['naam'];
-  if (nameValue) {
-    templateFields.push({ api_id: 'Name_1', value: nameValue as string });
+  // Name_1 is an autofill field - try to populate from voorletters + achternaam
+  const voorletters = fieldValues['voorletters-tekenbevoegde'];
+  const achternaam = fieldValues['achternaam-tekenbevoegde'];
+  if (voorletters && achternaam) {
+    templateFields.push({ api_id: 'Name_1', value: `${voorletters} ${achternaam}` });
   }
   
   // Email_1 is an autofill field in the template
-  // Note: 'email' field doesn't exist in the template, only Email_1 autofill
+  // Note: 'email' field doesn't exist in the template, we'll use the signer's email
   
   // Log the mapped fields for debugging
   console.log('Mapped template fields:', JSON.stringify(templateFields, null, 2));

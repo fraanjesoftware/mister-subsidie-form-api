@@ -111,7 +111,7 @@ export async function createSignWellTemplateSession(
       },
       test_mode: process.env.SIGNWELL_TEST_MODE === 'true',
       draft: false,
-      send_email: false, // Embedded signing doesn't send emails by default
+      send_email: true, // Embedded signing doesn't send emails by default
     };
 
     // Use the template ID from environment variable
