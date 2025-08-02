@@ -1,13 +1,25 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { SignWellService } from '../services/signwellService';
 import { CreateDocumentRequest } from '../types/signwell';
+import { mapRecipientTabsToFields, RecipientTabs } from '../utils/signwellFieldMapper';
+
+interface Signer {
+  email: string;
+  name: string;
+  roleName: 'Applicant' | 'SecondSigner';
+  tabs?: RecipientTabs;
+}
 
 interface CreateSignWellSigningSessionRequest {
   templateId?: string;
-  name: string;
+  signers?: Signer[]; // Support old frontend format
+  returnUrl?: string; // Support old frontend format
+  // Also support new format
+  name?: string;
   subject?: string;
   message?: string;
-  recipients: Array<{
+  recipients?: Array<{
+    id?: string;
     name: string;
     email: string;
     placeholder_name?: string;
@@ -41,19 +53,48 @@ export async function createSignWellSigningSession(
     // Parse request body
     const body = await request.json() as CreateSignWellSigningSessionRequest;
     
-    if (!body.name) {
-      return {
-        status: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        },
-        body: JSON.stringify({ error: 'Document name is required' }),
-      };
+    // Support both old frontend format (signers) and new format (recipients)
+    let recipients = body.recipients;
+    let fields: any[] = [];
+    let documentName = body.name;
+    let returnUrl = body.redirectUri || body.returnUrl;
+    
+    // Handle old frontend format with signers and tabs
+    if (body.signers && body.signers.length > 0) {
+      context.log('Processing signers format with tabs');
+      
+      // Map signers to recipients and extract fields
+      recipients = body.signers.map((signer, index) => {
+        const recipientId = `recipient_${index + 1}`;
+        
+        // Map tabs to fields if present
+        if (signer.tabs) {
+          const signerFields = mapRecipientTabsToFields(signer.tabs, recipientId);
+          fields.push(...signerFields);
+          context.log(`Mapped ${signerFields.length} fields for ${signer.name}`);
+        }
+        
+        return {
+          id: recipientId,
+          name: signer.name,
+          email: signer.email,
+          placeholder_name: 'signer', // Map to your template's placeholder
+          order: index + 1,
+        };
+      });
+      
+      // Generate document name from company name if available
+      const companyNameTab = body.signers[0]?.tabs?.textTabs?.find(tab => tab.tabLabel === 'bedrijfsnaam');
+      documentName = companyNameTab 
+        ? `SLIM Subsidie Aanvraag - ${companyNameTab.value}`
+        : 'SLIM Subsidie Aanvraag';
+    }
+    
+    if (!documentName) {
+      documentName = 'SignWell Document';
     }
 
-    if (!body.recipients || body.recipients.length === 0) {
+    if (!recipients || recipients.length === 0) {
       return {
         status: 400,
         headers: {
@@ -70,20 +111,21 @@ export async function createSignWellSigningSession(
 
     // Prepare the request
     const documentRequest: CreateDocumentRequest = {
-      name: body.name,
-      subject: body.subject,
-      message: body.message,
-      recipients: body.recipients.map((recipient, index) => ({
-        id: `recipient_${index + 1}`,
+      name: documentName,
+      subject: body.subject || 'Please sign this document',
+      message: body.message || 'This document requires your signature',
+      recipients: recipients.map((recipient, index) => ({
+        id: recipient.id || `recipient_${index + 1}`,
         name: recipient.name,
         email: recipient.email,
         placeholder_name: recipient.placeholder_name,
         order: recipient.order || index + 1,
       })),
+      fields: fields.length > 0 ? fields : undefined,
       embedded_signing: body.embeddedSigning ?? true,
-      redirect_uri: body.redirectUri,
-      metadata: body.metadata,
-      test_mode: body.testMode,
+      redirect_uri: returnUrl,
+      metadata: body.metadata || {},
+      test_mode: body.testMode ?? true,
     };
 
     let document;
@@ -123,20 +165,39 @@ export async function createSignWellSigningSession(
       status: recipient.status,
     }));
 
-    return {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        documentId: document.id,
-        documentName: document.name,
-        status: document.status,
-        signingUrls,
-        metadata: body.metadata,
-      }),
-    };
+    // Support both response formats
+    if (body.signers) {
+      // Old frontend format expects a single signingUrl
+      const firstSigningUrl = signingUrls[0]?.signingUrl;
+      return {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          signingUrl: firstSigningUrl,
+          documentId: document.id,
+          status: 'created',
+        }),
+      };
+    } else {
+      // New format with all signing URLs
+      return {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: document.id,
+          documentName: document.name,
+          status: document.status,
+          signingUrls,
+          metadata: body.metadata,
+        }),
+      };
+    }
   } catch (error: any) {
     context.error('Error creating SignWell signing session:', error);
     

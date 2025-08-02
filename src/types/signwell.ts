@@ -15,15 +15,16 @@ export interface SignWellRecipient {
 export interface SignWellField {
   api_id: string;
   name?: string;
-  type: 'text' | 'signature' | 'date' | 'checkbox' | 'initial';
+  type?: 'text' | 'signature' | 'date' | 'checkbox' | 'initial' | 'dropdown';
   x?: number;
   y?: number;
   page?: number;
   width?: number;
   height?: number;
   required?: boolean;
-  value?: string;
+  value?: string | boolean;
   placeholder?: string;
+  recipient_id?: string;
 }
 
 export interface CreateDocumentRequest {
