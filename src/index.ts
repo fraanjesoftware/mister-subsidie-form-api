@@ -5,7 +5,6 @@
 import './functions/createTemplateSigningSession';
 import './functions/docusignWebhook';
 import './functions/createSignWellTemplateSession';
-import './functions/createSignWellSigningSession';
 import './functions/signwellWebhook';
 
 // You can add more function imports here as you create them
