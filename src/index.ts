@@ -4,7 +4,7 @@
 // Import all function files
 import './functions/createTemplateSigningSession';
 import './functions/docusignWebhook';
-
+import './functions/createSignWellTemplateSession';
 import './functions/createSignWellSigningSession';
 import './functions/signwellWebhook';
 
