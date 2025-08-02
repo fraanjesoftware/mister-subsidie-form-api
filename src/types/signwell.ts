@@ -43,6 +43,7 @@ export interface CreateDocumentRequest {
   custom_requester_email?: string;
   metadata?: Record<string, any>;
   draft?: boolean;
+  send_email?: boolean;
 }
 
 export interface SignWellDocument {

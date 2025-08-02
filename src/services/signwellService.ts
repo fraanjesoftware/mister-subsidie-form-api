@@ -74,6 +74,7 @@ export class SignWellService {
         ...request,
         template_id: templateId,
         test_mode: request.test_mode ?? this.testMode,
+        draft: request.draft ?? false, // Explicitly set to false to send emails
       };
 
       // Ensure all recipients have IDs
