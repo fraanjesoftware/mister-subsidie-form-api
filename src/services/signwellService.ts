@@ -84,6 +84,9 @@ export class SignWellService {
         }));
       }
 
+      // Log the request for debugging
+      console.log('SignWell API Request:', JSON.stringify(payload, null, 2));
+
       const response = await this.axiosInstance.post<SignWellDocument>(
         '/document_templates/documents/',
         payload

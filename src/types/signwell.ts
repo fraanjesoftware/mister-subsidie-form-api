@@ -8,7 +8,7 @@ export interface SignWellRecipient {
   id: string;
   name: string;
   email: string;
-  placeholder?: string;
+  placeholder_name?: string;
   order?: number;
 }
 

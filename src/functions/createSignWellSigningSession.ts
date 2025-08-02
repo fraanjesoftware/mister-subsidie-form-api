@@ -10,6 +10,7 @@ interface CreateSignWellSigningSessionRequest {
   recipients: Array<{
     name: string;
     email: string;
+    placeholder_name?: string;
     order?: number;
   }>;
   embeddedSigning?: boolean;
@@ -76,6 +77,7 @@ export async function createSignWellSigningSession(
         id: `recipient_${index + 1}`,
         name: recipient.name,
         email: recipient.email,
+        placeholder_name: recipient.placeholder_name,
         order: recipient.order || index + 1,
       })),
       embedded_signing: body.embeddedSigning ?? true,
