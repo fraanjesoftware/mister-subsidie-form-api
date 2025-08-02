@@ -74,13 +74,16 @@ export function mapListTabs(listTabs: ListTab[], recipientId: string): SignWellF
 
 /**
  * Maps all recipient tabs to SignWell template fields
+ * Handles duplicate fields (e.g., bedrijfsnaam_2, bedrijfsnaam_3) that represent the same value
  */
 export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ api_id: string; value: string | boolean }> {
   const templateFields: Array<{ api_id: string; value: string | boolean }> = [];
+  const fieldValues: Record<string, string | boolean> = {};
   
   // Map text tabs
   if (tabs.textTabs) {
     tabs.textTabs.forEach(tab => {
+      fieldValues[tab.tabLabel] = tab.value;
       templateFields.push({
         api_id: tab.tabLabel,
         value: tab.value,
@@ -92,6 +95,7 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   if (tabs.radioGroupTabs) {
     tabs.radioGroupTabs.forEach(group => {
       group.radios.forEach(radio => {
+        fieldValues[radio.value] = radio.selected;
         templateFields.push({
           api_id: radio.value,
           value: radio.selected,
@@ -103,11 +107,47 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   // Map list tabs (dropdowns)
   if (tabs.listTabs) {
     tabs.listTabs.forEach(tab => {
+      fieldValues[tab.tabLabel] = tab.value;
       templateFields.push({
         api_id: tab.tabLabel,
         value: tab.value,
       });
     });
+  }
+  
+  // Add duplicate fields with _2, _3 suffixes for known duplicates
+  const duplicateFieldMap: Record<string, string[]> = {
+    'bedrijfsnaam': ['bedrijfsnaam_2', 'bedrijfsnaam_3'],
+    'kvk': ['kvk_2'],
+    'functie': ['functie_2'],
+    'plaats': ['plaats_2'],
+    // Add more duplicate mappings as needed
+  };
+  
+  Object.entries(duplicateFieldMap).forEach(([originalField, duplicates]) => {
+    if (fieldValues[originalField] !== undefined) {
+      duplicates.forEach(duplicateField => {
+        templateFields.push({
+          api_id: duplicateField,
+          value: fieldValues[originalField],
+        });
+      });
+    }
+  });
+  
+  // Handle autofill fields that might be in the template
+  // Name autofill
+  const nameValue = fieldValues['naam'];
+  if (nameValue) {
+    templateFields.push({ api_id: 'Name_1', value: nameValue as string });
+    templateFields.push({ api_id: 'Name_2', value: nameValue as string });
+  }
+  
+  // Email autofill
+  const emailValue = fieldValues['email'];
+  if (emailValue) {
+    templateFields.push({ api_id: 'Email_1', value: emailValue as string });
+    templateFields.push({ api_id: 'Email_2', value: emailValue as string });
   }
   
   return templateFields;
