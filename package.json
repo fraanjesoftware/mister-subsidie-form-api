@@ -19,6 +19,7 @@
     "@azure/functions": "^4.7.3-beta.0",
     "@google-cloud/local-auth": "^3.0.1",
     "docusign-esign": "^7.0.2",
+    "dotenv": "^17.2.1",
     "googleapis": "^150.0.1",
     "pdf-lib": "^1.17.1",
     "uuid": "^9.0.1"
