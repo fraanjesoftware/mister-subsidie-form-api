@@ -13,6 +13,8 @@ interface FrontendSigner {
 interface CreateTemplateSigningSessionRequest {
   signers: FrontendSigner[];
   returnUrl: string;
+  sendEmails?: boolean; // Optional: control email notifications
+  testMode?: boolean; // Optional: override test mode
 }
 
 export async function createSignWellTemplateSession(
@@ -109,9 +111,10 @@ export async function createSignWellTemplateSession(
         submission_date: new Date().toISOString(),
         source: 'mister-subsidie-frontend'
       },
-      test_mode: process.env.SIGNWELL_TEST_MODE === 'true',
+      test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
       draft: false,
-      send_email: true, // Embedded signing doesn't send emails by default
+      send_email: true, // Always send emails unless explicitly disabled
+      embedded_signing_notifications: true, // Also enable embedded signing notifications
     };
 
     // Use the template ID from environment variable

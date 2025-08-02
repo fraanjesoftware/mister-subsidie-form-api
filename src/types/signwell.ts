@@ -59,6 +59,7 @@ export interface CreateDocumentRequest {
   metadata?: Record<string, any>;
   draft?: boolean;
   send_email?: boolean;
+  embedded_signing_notifications?: boolean;
 }
 
 export interface SignWellDocument {
