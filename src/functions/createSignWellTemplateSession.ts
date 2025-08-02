@@ -103,7 +103,6 @@ export async function createSignWellTemplateSession(
         }
       ],
       embedded_signing: false,
-      embedded_signing_clear_background: true,
       redirect_uri: body.returnUrl,
       metadata: {
         company_name: companyNameTab?.value || '',
@@ -114,7 +113,6 @@ export async function createSignWellTemplateSession(
       test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
       draft: false,
       send_email: true, // Always send emails unless explicitly disabled
-      embedded_signing_notifications: true, // Also enable embedded signing notifications
     };
 
     // Use the template ID from environment variable
