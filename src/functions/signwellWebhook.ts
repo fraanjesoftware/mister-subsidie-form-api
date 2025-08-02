@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as crypto from 'crypto';
+import { PDFDocument } from 'pdf-lib';
 import { SignWellWebhookEvent } from '../types/signwell';
 import { SignWellService } from '../services/signwellService';
 
@@ -71,9 +72,22 @@ export async function signwellWebhook(
             const pdfBuffer = await signwellService.getCompletedPdf(document.id);
             context.log(`Downloaded PDF for document ${document.id}, size: ${pdfBuffer.length} bytes`);
             
+            // Split the PDF
+            const splitPdfs = await splitSignedPdf(pdfBuffer, document.files, context);
+            
+            // Log results
+            context.log('PDF split results:', {
+              originalFiles: splitPdfs.originalFiles.length,
+              auditTrail: splitPdfs.auditTrail ? 'Yes' : 'No',
+              fullDocument: splitPdfs.fullDocument.length + ' bytes'
+            });
+            
             // TODO: Upload to OneDrive
-            // For now, just log success
-            context.log('PDF downloaded successfully, ready for OneDrive upload');
+            // - splitPdfs.fullDocument - Complete signed document
+            // - splitPdfs.originalFiles - Individual files
+            // - splitPdfs.auditTrail - Certificate/audit pages
+            
+            context.log('PDFs ready for OneDrive upload');
             
           } catch (error) {
             context.error('Failed to download PDF:', error);
@@ -129,6 +143,84 @@ export async function signwellWebhook(
         error: 'Failed to process webhook',
         details: error instanceof Error ? error.message : 'Unknown error'
       })
+    };
+  }
+}
+
+async function splitSignedPdf(
+  pdfBuffer: Buffer,
+  fileInfo: Array<{ name: string; pages_number: number }>,
+  context: InvocationContext
+): Promise<{
+  fullDocument: Buffer;
+  originalFiles: Array<{ name: string; buffer: Buffer }>;
+  auditTrail: Buffer | null;
+}> {
+  try {
+    // Load the complete PDF
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const totalPages = pdfDoc.getPageCount();
+    
+    context.log(`Total pages in signed document: ${totalPages}`);
+    
+    // Calculate expected pages from file info
+    const expectedPages = fileInfo.reduce((sum, file) => sum + file.pages_number, 0);
+    const auditPages = totalPages - expectedPages;
+    
+    context.log(`Expected content pages: ${expectedPages}, Audit pages: ${auditPages}`);
+    
+    const originalFiles: Array<{ name: string; buffer: Buffer }> = [];
+    let currentPage = 0;
+    
+    // Split original files
+    for (const file of fileInfo) {
+      const newPdf = await PDFDocument.create();
+      
+      // Copy pages for this file
+      for (let i = 0; i < file.pages_number; i++) {
+        const [copiedPage] = await newPdf.copyPages(pdfDoc, [currentPage + i]);
+        newPdf.addPage(copiedPage);
+      }
+      
+      const pdfBytes = await newPdf.save();
+      originalFiles.push({
+        name: file.name,
+        buffer: Buffer.from(pdfBytes)
+      });
+      
+      context.log(`Split file: ${file.name} (${file.pages_number} pages)`);
+      currentPage += file.pages_number;
+    }
+    
+    // Extract audit trail/certificate pages if they exist
+    let auditTrail: Buffer | null = null;
+    if (auditPages > 0) {
+      const auditPdf = await PDFDocument.create();
+      
+      // Copy audit pages (usually at the end)
+      for (let i = expectedPages; i < totalPages; i++) {
+        const [copiedPage] = await auditPdf.copyPages(pdfDoc, [i]);
+        auditPdf.addPage(copiedPage);
+      }
+      
+      const auditBytes = await auditPdf.save();
+      auditTrail = Buffer.from(auditBytes);
+      context.log(`Extracted audit trail: ${auditPages} pages`);
+    }
+    
+    return {
+      fullDocument: pdfBuffer, // Keep original as-is
+      originalFiles,
+      auditTrail
+    };
+    
+  } catch (error) {
+    context.error('Failed to split PDF:', error);
+    // Return original if splitting fails
+    return {
+      fullDocument: pdfBuffer,
+      originalFiles: [],
+      auditTrail: null
     };
   }
 }
