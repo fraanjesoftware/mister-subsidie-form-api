@@ -70,8 +70,11 @@ export class SignWellService {
     request: Omit<CreateDocumentRequest, 'template_id'>
   ): Promise<SignWellDocument> {
     try {
+      // Exclude fields when creating from template (use template_fields instead)
+      const { fields, ...requestWithoutFields } = request;
+      
       const payload = {
-        ...request,
+        ...requestWithoutFields,
         template_id: templateId,
         test_mode: request.test_mode ?? this.testMode,
         draft: request.draft ?? false, // Explicitly set to false to send emails
