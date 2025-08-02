@@ -51,6 +51,7 @@ export async function signwellWebhook(
     // Handle different webhook events
     switch (webhookData.event.type) {
       case 'document_signed':
+      case 'document_completed':
         const document = webhookData.data.object;
         context.log('Document signed:', {
           documentId: document.id,

@@ -77,7 +77,7 @@ export interface SignWellWebhookEvent {
   event: {
     hash: string;
     time: number;
-    type: 'document_signed' | 'document_sent' | 'recipient_completed' | 'recipient_viewed';
+    type: 'document_signed' | 'document_completed' | 'document_sent' | 'recipient_completed' | 'recipient_viewed';
     related_signer?: {
       email: string;
       name: string;
