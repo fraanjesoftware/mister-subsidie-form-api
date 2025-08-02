@@ -74,9 +74,29 @@ export interface SignWellFile {
 }
 
 export interface SignWellWebhookEvent {
-  event: 'document_completed' | 'document_sent' | 'recipient_completed' | 'recipient_viewed';
-  document: SignWellDocument;
-  recipient?: SignWellDocumentRecipient;
+  event: {
+    hash: string;
+    time: number;
+    type: 'document_signed' | 'document_sent' | 'recipient_completed' | 'recipient_viewed';
+    related_signer?: {
+      email: string;
+      name: string;
+    };
+  };
+  data: {
+    object: SignWellDocument & {
+      archived: boolean;
+      template_id: string;
+      files: Array<{
+        name: string;
+        pages_number: number;
+      }>;
+      fields: any[];
+      metadata: Record<string, any>;
+    };
+    account_id: string;
+    workspace_id: string;
+  };
 }
 
 export interface SignWellError {

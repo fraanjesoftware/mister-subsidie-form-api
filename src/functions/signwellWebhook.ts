@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as crypto from 'crypto';
 import { SignWellWebhookEvent } from '../types/signwell';
+import { SignWellService } from '../services/signwellService';
 
 const SIGNWELL_API_APP_ID = process.env.SIGNWELL_API_APP_ID || 'd3957989-c389-4f24-aacc-74f507ccc59e';
 
@@ -42,31 +43,49 @@ export async function signwellWebhook(
     // Parse the webhook payload
     const webhookData = JSON.parse(rawBody) as SignWellWebhookEvent;
     
-    context.log('Webhook event:', webhookData.event);
-    context.log('Document ID:', webhookData.document?.id);
-    context.log('Document status:', webhookData.document?.status);
+    context.log('Webhook event type:', webhookData.event.type);
+    context.log('Document ID:', webhookData.data.object.id);
+    context.log('Document status:', webhookData.data.object.status);
 
     // Handle different webhook events
-    switch (webhookData.event) {
-      case 'document_completed':
-        context.log('Document completed:', {
-          documentId: webhookData.document.id,
-          documentName: webhookData.document.name,
-          completedAt: webhookData.document.completed_at
+    switch (webhookData.event.type) {
+      case 'document_signed':
+        const document = webhookData.data.object;
+        context.log('Document signed:', {
+          documentId: document.id,
+          documentName: document.name,
+          status: document.status,
+          signer: webhookData.event.related_signer,
+          files: document.files
         });
         
-        // Here you can:
-        // - Update your database
-        // - Download the completed PDF
-        // - Send notifications
-        // - Trigger other workflows
+        // Check if document is fully completed (webhook uses 'Completed' with capital C)
+        if ((document as any).status === 'Completed' || document.status === 'completed') {
+          context.log('Document is fully completed, downloading PDF...');
+          
+          try {
+            // Initialize SignWell service
+            const signwellService = new SignWellService();
+            
+            // Download the completed PDF
+            const pdfBuffer = await signwellService.getCompletedPdf(document.id);
+            context.log(`Downloaded PDF for document ${document.id}, size: ${pdfBuffer.length} bytes`);
+            
+            // TODO: Upload to OneDrive
+            // For now, just log success
+            context.log('PDF downloaded successfully, ready for OneDrive upload');
+            
+          } catch (error) {
+            context.error('Failed to download PDF:', error);
+          }
+        }
         
         break;
 
       case 'document_sent':
         context.log('Document sent to recipients:', {
-          documentId: webhookData.document.id,
-          recipients: webhookData.document.recipients.map(r => ({
+          documentId: webhookData.data.object.id,
+          recipients: webhookData.data.object.recipients.map(r => ({
             name: r.name,
             email: r.email,
             status: r.status
@@ -76,24 +95,20 @@ export async function signwellWebhook(
 
       case 'recipient_completed':
         context.log('Recipient completed signing:', {
-          documentId: webhookData.document.id,
-          recipientName: webhookData.recipient?.name,
-          recipientEmail: webhookData.recipient?.email,
-          signedAt: webhookData.recipient?.signed_at
+          documentId: webhookData.data.object.id,
+          signer: webhookData.event.related_signer
         });
         break;
 
       case 'recipient_viewed':
         context.log('Recipient viewed document:', {
-          documentId: webhookData.document.id,
-          recipientName: webhookData.recipient?.name,
-          recipientEmail: webhookData.recipient?.email,
-          viewedAt: webhookData.recipient?.viewed_at
+          documentId: webhookData.data.object.id,
+          signer: webhookData.event.related_signer
         });
         break;
 
       default:
-        context.log('Unknown webhook event:', webhookData.event);
+        context.log('Unknown webhook event:', webhookData.event.type);
     }
 
     // Log the full webhook payload for debugging
