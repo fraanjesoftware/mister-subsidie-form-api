@@ -3,6 +3,8 @@ import * as crypto from 'crypto';
 import { PDFDocument } from 'pdf-lib';
 import { SignWellWebhookEvent } from '../types/signwell';
 import { SignWellService } from '../services/signwellService';
+import { OneDriveService } from '../services/onedriveService';
+import { DocumentMetadata } from '../types/onedrive';
 
 const SIGNWELL_API_APP_ID = process.env.SIGNWELL_API_APP_ID || 'd3957989-c389-4f24-aacc-74f507ccc59e';
 
@@ -83,12 +85,76 @@ export async function signwellWebhook(
               fullDocument: splitPdfs.fullDocument.length + ' bytes'
             });
             
-            // TODO: Upload to OneDrive
-            // - splitPdfs.fullDocument - Complete signed document
-            // - splitPdfs.originalFiles - Individual files
-            // - splitPdfs.auditTrail - Certificate/audit pages
+            // Check if OneDrive is configured
+            const isOneDriveConfigured = process.env.ONEDRIVE_CLIENT_ID && 
+                                        process.env.ONEDRIVE_CLIENT_SECRET && 
+                                        process.env.ONEDRIVE_TENANT_ID &&
+                                        (process.env.ONEDRIVE_USER_ID || process.env.ONEDRIVE_SITE_ID);
             
-            context.log('PDFs ready for OneDrive upload');
+            if (isOneDriveConfigured) {
+              context.log('Uploading documents to OneDrive...');
+              
+              try {
+                // Initialize OneDrive service
+                const onedriveService = new OneDriveService();
+                
+                // Extract metadata from document
+                const metadata: DocumentMetadata = {
+                  companyName: document.metadata?.company_name || 'Unknown Company',
+                  kvkNumber: document.metadata?.kvk_number || 'Unknown',
+                  documentId: document.id,
+                  signedAt: document.completed_at || new Date().toISOString(),
+                  signerName: webhookData.event.related_signer?.name,
+                  signerEmail: webhookData.event.related_signer?.email,
+                };
+                
+                // Prepare documents for upload
+                const documentsToUpload: { buffer: Buffer; fileName: string }[] = [];
+                
+                // Add full document
+                documentsToUpload.push({
+                  buffer: splitPdfs.fullDocument,
+                  fileName: `SLIM_Aanvraag_Complete_${document.id.slice(-8)}.pdf`
+                });
+                
+                // Add individual pages
+                splitPdfs.originalFiles.forEach((file, index) => {
+                  documentsToUpload.push({
+                    buffer: file.buffer,
+                    fileName: `SLIM_Aanvraag_Pagina_${index + 1}.pdf`
+                  });
+                });
+                
+                // Add audit trail if exists
+                if (splitPdfs.auditTrail) {
+                  documentsToUpload.push({
+                    buffer: splitPdfs.auditTrail,
+                    fileName: `SLIM_Audit_Trail_${document.id.slice(-8)}.pdf`
+                  });
+                }
+                
+                // Upload all documents
+                const uploadResults = await onedriveService.uploadSignedDocuments(
+                  documentsToUpload,
+                  metadata
+                );
+                
+                context.log('OneDrive upload completed:', {
+                  filesUploaded: uploadResults.length,
+                  files: uploadResults.map(r => ({
+                    name: r.name,
+                    size: r.size,
+                    webUrl: r.webUrl
+                  }))
+                });
+                
+              } catch (uploadError) {
+                context.error('Failed to upload to OneDrive:', uploadError);
+                // Don't fail the webhook - log error and continue
+              }
+            } else {
+              context.log('OneDrive not configured - skipping upload');
+            }
             
           } catch (error) {
             context.error('Failed to download PDF:', error);

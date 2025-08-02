@@ -102,7 +102,7 @@ export async function createSignWellTemplateSession(
           required: true
         }
       ],
-      embedded_signing: true,
+      embedded_signing: false,
       embedded_signing_clear_background: true,
       redirect_uri: body.returnUrl,
       metadata: {
