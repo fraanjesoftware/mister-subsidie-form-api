@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { SignWellService } from '../services/signwellService';
 import { CreateDocumentRequest } from '../types/signwell';
-import { mapRecipientTabsToFields, RecipientTabs } from '../utils/signwellFieldMapper';
+import { mapRecipientTabsToTemplateFields, RecipientTabs } from '../utils/signwellFieldMapper';
 
 interface Signer {
   email: string;
@@ -55,7 +55,7 @@ export async function createSignWellSigningSession(
     
     // Support both old frontend format (signers) and new format (recipients)
     let recipients = body.recipients;
-    let fields: any[] = [];
+    let templateFields: Array<{ api_id: string; value: string | boolean }> = [];
     let documentName = body.name;
     let returnUrl = body.redirectUri || body.returnUrl;
     
@@ -63,15 +63,15 @@ export async function createSignWellSigningSession(
     if (body.signers && body.signers.length > 0) {
       context.log('Processing signers format with tabs');
       
-      // Map signers to recipients and extract fields
+      // Map signers to recipients and extract template fields
       recipients = body.signers.map((signer, index) => {
         const recipientId = `recipient_${index + 1}`;
         
-        // Map tabs to fields if present
+        // Map tabs to template fields if present
         if (signer.tabs) {
-          const signerFields = mapRecipientTabsToFields(signer.tabs, recipientId);
-          fields.push(...signerFields);
-          context.log(`Mapped ${signerFields.length} fields for ${signer.name}`);
+          const signerFields = mapRecipientTabsToTemplateFields(signer.tabs);
+          templateFields.push(...signerFields);
+          context.log(`Mapped ${signerFields.length} template fields for ${signer.name}`);
         }
         
         return {
@@ -121,7 +121,7 @@ export async function createSignWellSigningSession(
         placeholder_name: recipient.placeholder_name,
         order: recipient.order || index + 1,
       })),
-      fields: fields.length > 0 ? fields : undefined,
+      template_fields: templateFields.length > 0 ? templateFields : undefined,
       embedded_signing: body.embeddedSigning ?? true,
       redirect_uri: returnUrl,
       metadata: body.metadata || {},

@@ -34,6 +34,10 @@ export interface CreateDocumentRequest {
   message?: string;
   recipients: SignWellRecipient[];
   fields?: SignWellField[];
+  template_fields?: Array<{
+    api_id: string;
+    value: string | boolean;
+  }>;
   file_url?: string;
   file?: Buffer;
   template_id?: string;

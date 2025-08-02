@@ -73,7 +73,48 @@ export function mapListTabs(listTabs: ListTab[], recipientId: string): SignWellF
 }
 
 /**
- * Maps all recipient tabs to SignWell fields
+ * Maps all recipient tabs to SignWell template fields
+ */
+export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ api_id: string; value: string | boolean }> {
+  const templateFields: Array<{ api_id: string; value: string | boolean }> = [];
+  
+  // Map text tabs
+  if (tabs.textTabs) {
+    tabs.textTabs.forEach(tab => {
+      templateFields.push({
+        api_id: tab.tabLabel,
+        value: tab.value,
+      });
+    });
+  }
+  
+  // Convert radio groups to checkboxes
+  if (tabs.radioGroupTabs) {
+    tabs.radioGroupTabs.forEach(group => {
+      group.radios.forEach(radio => {
+        templateFields.push({
+          api_id: radio.value,
+          value: radio.selected,
+        });
+      });
+    });
+  }
+  
+  // Map list tabs (dropdowns)
+  if (tabs.listTabs) {
+    tabs.listTabs.forEach(tab => {
+      templateFields.push({
+        api_id: tab.tabLabel,
+        value: tab.value,
+      });
+    });
+  }
+  
+  return templateFields;
+}
+
+/**
+ * Maps all recipient tabs to SignWell fields (for non-template documents)
  */
 export function mapRecipientTabsToFields(tabs: RecipientTabs, recipientId: string): SignWellField[] {
   const fields: SignWellField[] = [];
