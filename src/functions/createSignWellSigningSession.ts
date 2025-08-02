@@ -26,9 +26,32 @@ interface CreateSignWellSigningSessionRequest {
     order?: number;
   }>;
   embeddedSigning?: boolean;
+  embeddedSigningNotifications?: boolean;
   redirectUri?: string;
   metadata?: Record<string, any>;
   testMode?: boolean;
+  draft?: boolean;
+  send_email?: boolean;
+  checkbox_groups?: Array<{
+    group_name: string;
+    recipient_id: string;
+    checkbox_ids: string[];
+    validation?: 'minimum' | 'maximum' | 'exact' | 'range';
+    required?: boolean;
+    min_value?: number;
+    max_value?: number;
+    exact_value?: number;
+  }>;
+  checkboxGroups?: Array<{
+    group_name: string;
+    recipient_id: string;
+    checkbox_ids: string[];
+    validation?: 'minimum' | 'maximum' | 'exact' | 'range';
+    required?: boolean;
+    min_value?: number;
+    max_value?: number;
+    exact_value?: number;
+  }>;
 }
 
 export async function createSignWellSigningSession(
@@ -122,10 +145,13 @@ export async function createSignWellSigningSession(
         order: recipient.order || index + 1,
       })),
       template_fields: templateFields.length > 0 ? templateFields : undefined,
+      checkbox_groups: body.checkbox_groups || body.checkboxGroups,
       embedded_signing: body.embeddedSigning ?? true,
       redirect_uri: returnUrl,
       metadata: body.metadata || {},
       test_mode: body.testMode ?? true,
+      draft: body.draft ?? false,
+      send_email: body.send_email ?? body.embeddedSigningNotifications,
     };
 
     let document;

@@ -38,6 +38,16 @@ export interface CreateDocumentRequest {
     api_id: string;
     value: string | boolean;
   }>;
+  checkbox_groups?: Array<{
+    group_name: string;
+    recipient_id: string;
+    checkbox_ids: string[];
+    validation?: 'minimum' | 'maximum' | 'exact' | 'range';
+    required?: boolean;
+    min_value?: number;
+    max_value?: number;
+    exact_value?: number;
+  }>;
   file_url?: string;
   file?: Buffer;
   template_id?: string;

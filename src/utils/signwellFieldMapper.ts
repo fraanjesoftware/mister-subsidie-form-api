@@ -80,16 +80,36 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   const templateFields: Array<{ api_id: string; value: string | boolean }> = [];
   const fieldValues: Record<string, string | boolean> = {};
   
+  // List of conditional fields that should get a space if empty
+  const conditionalFields = ['minimis-2.1', 'minimis-3.1', 'minimis-3.2'];
+  
   // Map text tabs
   if (tabs.textTabs) {
     tabs.textTabs.forEach(tab => {
-      fieldValues[tab.tabLabel] = tab.value;
+      let value = tab.value;
+      
+      // For conditional fields, if empty or undefined, use a space
+      if (conditionalFields.includes(tab.tabLabel) && (!value || value.trim() === '')) {
+        value = ' ';
+      }
+      
+      fieldValues[tab.tabLabel] = value;
       templateFields.push({
         api_id: tab.tabLabel,
-        value: tab.value,
+        value: value,
       });
     });
   }
+  
+  // Add empty conditional fields that weren't provided
+  conditionalFields.forEach(fieldId => {
+    if (!fieldValues.hasOwnProperty(fieldId)) {
+      templateFields.push({
+        api_id: fieldId,
+        value: ' ',
+      });
+    }
+  });
   
   // Convert radio groups to checkboxes
   if (tabs.radioGroupTabs) {
@@ -115,13 +135,14 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
     });
   }
   
-  // Add duplicate fields with _2, _3 suffixes for known duplicates
+  // Add duplicate fields with _2, _3 suffixes based on actual template fields
   const duplicateFieldMap: Record<string, string[]> = {
     'bedrijfsnaam': ['bedrijfsnaam_2', 'bedrijfsnaam_3'],
     'kvk': ['kvk_2'],
     'functie': ['functie_2'],
     'plaats': ['plaats_2'],
-    // Add more duplicate mappings as needed
+    // Note: voorletters-tekenbevoegde and achternaam-tekenbevoegde exist but don't have _2 versions in template
+    // Note: functie-tekenbevoegde doesn't exist in the template
   };
   
   Object.entries(duplicateFieldMap).forEach(([originalField, duplicates]) => {
@@ -135,20 +156,19 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
     }
   });
   
-  // Handle autofill fields that might be in the template
-  // Name autofill
+  // Handle autofill fields that exist in the template
+  // Name_1 is an autofill field but we can populate it from naam field
   const nameValue = fieldValues['naam'];
   if (nameValue) {
     templateFields.push({ api_id: 'Name_1', value: nameValue as string });
-    templateFields.push({ api_id: 'Name_2', value: nameValue as string });
   }
   
-  // Email autofill
-  const emailValue = fieldValues['email'];
-  if (emailValue) {
-    templateFields.push({ api_id: 'Email_1', value: emailValue as string });
-    templateFields.push({ api_id: 'Email_2', value: emailValue as string });
-  }
+  // Email_1 is an autofill field in the template
+  // Note: 'email' field doesn't exist in the template, only Email_1 autofill
+  
+  // Log the mapped fields for debugging
+  console.log('Mapped template fields:', JSON.stringify(templateFields, null, 2));
+  console.log(`Total fields mapped: ${templateFields.length}`);
   
   return templateFields;
 }
