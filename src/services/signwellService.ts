@@ -90,8 +90,17 @@ export class SignWellService {
       );
 
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = formatSignWellError(error);
+      
+      // Log detailed error for debugging
+      console.error('SignWell API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+      
       throw new Error(`Failed to create SignWell document from template: ${errorMessage}`);
     }
   }

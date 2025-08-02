@@ -10,6 +10,9 @@
     "DOCUSIGN_ACCOUNT_ID": "",
     "DOCUSIGN_RSA_PRIVATE_KEY": "",
     "DOCUSIGN_BASE_URL": "",
-    "DOCUSIGN_WEBHOOK_SECRET": ""
+    "DOCUSIGN_WEBHOOK_SECRET": "",
+    "SIGNWELL_API_KEY": "test-api-key",
+    "SIGNWELL_TEST_MODE": "true",
+    "SIGNWELL_ENVIRONMENT": "test"
   }
 }

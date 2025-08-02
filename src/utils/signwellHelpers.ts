@@ -26,6 +26,17 @@ export function formatSignWellError(error: unknown): string {
     return message;
   }
   
+  // Check if it's an axios error with response data
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as any;
+    if (axiosError.response?.data) {
+      // Return the raw error data as string if it doesn't match expected format
+      return typeof axiosError.response.data === 'string' 
+        ? axiosError.response.data 
+        : JSON.stringify(axiosError.response.data);
+    }
+  }
+  
   if (error instanceof Error) {
     return error.message;
   }

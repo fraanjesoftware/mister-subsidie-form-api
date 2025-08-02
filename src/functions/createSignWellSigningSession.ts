@@ -135,11 +135,17 @@ export async function createSignWellSigningSession(
         metadata: body.metadata,
       }),
     };
-  } catch (error) {
+  } catch (error: any) {
     context.error('Error creating SignWell signing session:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const statusCode = errorMessage.includes('API key') ? 401 : 500;
+    let statusCode = 500;
+    
+    if (errorMessage.includes('API key')) {
+      statusCode = 401;
+    } else if (errorMessage.includes('422')) {
+      statusCode = 422;
+    }
 
     return {
       status: statusCode,
