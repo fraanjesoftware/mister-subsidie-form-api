@@ -17,6 +17,14 @@ interface CreateTemplateSigningSessionRequest {
   testMode?: boolean; // Optional: override test mode
 }
 
+/**
+ * Creates a SignWell signing session from a template.
+ * Supports both single-signer and two-signer templates.
+ * 
+ * Two-signer template is used when:
+ * - Second signer fields are provided (voorletters-tekenbevoegde-2, achternaam-tekenbevoegde-2, functie-tekenbevoegde-2)
+ * - OR a second signer object is explicitly provided
+ */
 export async function createSignWellTemplateSession(
   request: HttpRequest,
   context: InvocationContext
@@ -57,6 +65,14 @@ export async function createSignWellTemplateSession(
     // Get the primary signer (Applicant)
     const primarySigner = body.signers.find(s => s.roleName === 'Applicant') || body.signers[0];
     
+    // Check if we have a second signer
+    const secondSigner = body.signers.find(s => s.roleName === 'SecondSigner');
+    
+    // Check if second signer fields are provided
+    const hasSecondSignerFields = primarySigner.tabs.textTabs?.some(tab => 
+      ['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'].includes(tab.tabLabel)
+    );
+    
     // Map frontend tabs to SignWell template fields
     const templateFields = mapRecipientTabsToTemplateFields(primarySigner.tabs);
     context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name}`);
@@ -70,18 +86,43 @@ export async function createSignWellTemplateSession(
     // Initialize SignWell service
     const signwellService = new SignWellService();
 
+    // Build recipients array
+    const recipients = [{
+      id: 'recipient_1',
+      name: primarySigner.name,
+      email: primarySigner.email,
+      placeholder_name: 'signer',
+      order: 1,
+    }];
+
+    // Add second signer if we have second signer fields
+    if (hasSecondSignerFields || secondSigner) {
+      // Get second signer details from fields or from explicit second signer
+      const voorlettersTab = primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'voorletters-tekenbevoegde-2');
+      const achternaamTab = primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'achternaam-tekenbevoegde-2');
+      
+      const secondSignerName = secondSigner?.name || 
+        (voorlettersTab && achternaamTab ? `${voorlettersTab.value} ${achternaamTab.value}`.trim() : 'Tweede Ondertekenaar');
+      
+      const secondSignerEmail = secondSigner?.email || primarySigner.email; // Use primary signer's email if not provided
+      
+      recipients.push({
+        id: 'recipient_2',
+        name: secondSignerName,
+        email: secondSignerEmail,
+        placeholder_name: 'signer2',
+        order: 2,
+      });
+      
+      context.log('Adding second signer:', { name: secondSignerName, email: secondSignerEmail });
+    }
+
     // Prepare the SignWell request
     const documentRequest: CreateDocumentRequest = {
       name: documentName,
       subject: 'SLIM Subsidie - Ondertekeningsverzoek',
       message: 'Beste aanvrager,<br><br>Hierbij ontvangt u de subsidieaanvraag ter ondertekening. Controleer alle gegevens zorgvuldig voordat u ondertekent.<br><br>Met vriendelijke groet,<br>Team Mister Subsidie',
-      recipients: [{
-        id: 'recipient_1',
-        name: primarySigner.name,
-        email: primarySigner.email,
-        placeholder_name: 'signer',
-        order: 1,
-      }],
+      recipients,
       template_fields: templateFields,
       // Add checkbox groups for radio button behavior
       checkbox_groups: [
@@ -116,8 +157,18 @@ export async function createSignWellTemplateSession(
       send_email: true, // Always send emails unless explicitly disabled
     };
 
-    // Use the template ID from environment variable
-    const templateId = process.env.SIGNWELL_TEMPLATE_ID;
+    // Determine which template to use based on number of signers
+    let templateId: string;
+    
+    if (hasSecondSignerFields || secondSigner) {
+      // Use two-signer template
+      templateId = process.env.SIGNWELL_TWO_SIGNER_TEMPLATE_ID || '130fb2e1-f13d-4acb-a8ff-373f3698ad6d';
+      context.log('Using two-signer template');
+    } else {
+      // Use single-signer template from environment variable
+      templateId = process.env.SIGNWELL_TEMPLATE_ID || '';
+      context.log('Using single-signer template');
+    }
     
     if (!templateId) {
       return {
