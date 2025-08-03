@@ -166,6 +166,8 @@ export async function createSignWellTemplateSession(
       ],
       embedded_signing: false,
       redirect_uri: body.returnUrl,
+      custom_requester_name?: 'Mister Subsidie',
+      custom_requester_email?: "mickeyfraanje@gmail.com",
       metadata: {
         company_name: companyNameTab?.value || '',
         kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
