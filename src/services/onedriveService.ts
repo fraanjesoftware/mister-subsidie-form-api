@@ -8,7 +8,7 @@ import {
   OneDriveUploadSession,
   DocumentMetadata
 } from '../types/onedrive';
-import { ONEDRIVE_CONFIG, ONEDRIVE_ERRORS } from '../constants/onedrive';
+import { ONEDRIVE_CONFIG } from '../constants/onedrive';
 
 export class OneDriveService {
   private config: OneDriveConfig;
@@ -124,16 +124,19 @@ export class OneDriveService {
       currentPath = currentPath ? `${currentPath}/${segment}` : segment;
       
       try {
-        // Try to get the folder
-        const folder = await this.getFolder(currentPath);
-        parentId = folder.id;
-      } catch (error) {
+        // Try to get the folder by path
+        const basePath = this.getBasePath();
+        const response = await this.graphClient.get<OneDriveFolderResult>(
+          `${basePath}/root:/${currentPath}`
+        );
+        parentId = response.data.id;
+      } catch (error: any) {
         // If folder doesn't exist, create it
-        if (this.isNotFoundError(error)) {
+        if (error.response?.status === 404) {
           const newFolder = await this.createFolder(segment, parentId);
           parentId = newFolder.id;
         } else {
-          throw error;
+          throw new Error(`Failed to create folder structure: ${this.formatError(error)}`);
         }
       }
     }
@@ -141,21 +144,6 @@ export class OneDriveService {
     return parentId;
   }
 
-  /**
-   * Get folder by path
-   */
-  private async getFolder(path: string): Promise<OneDriveFolderResult> {
-    try {
-      const basePath = this.getBasePath();
-      const encodedPath = encodeURIComponent(path);
-      const response = await this.graphClient.get<OneDriveFolderResult>(
-        `${basePath}/root:/${encodedPath}`
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(`Failed to get folder: ${this.formatError(error)}`);
-    }
-  }
 
   /**
    * Create a folder
@@ -326,13 +314,6 @@ export class OneDriveService {
     return fileName.replace(ONEDRIVE_CONFIG.SANITIZE_REGEX, '_');
   }
 
-  /**
-   * Check if error is a not found error
-   */
-  private isNotFoundError(error: any): boolean {
-    const graphError = error?.response?.data as OneDriveError;
-    return graphError?.error?.code === ONEDRIVE_ERRORS.ITEM_NOT_FOUND;
-  }
 
   /**
    * Format error message
