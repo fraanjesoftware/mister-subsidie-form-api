@@ -74,7 +74,7 @@ export async function createSignWellTemplateSession(
     const documentRequest: CreateDocumentRequest = {
       name: documentName,
       subject: 'SLIM Subsidie - Ondertekeningsverzoek',
-      message: 'Beste aanvrager,<br><br>Hierbij ontvangt u de subsidieaanvraag ter ondertekening. Controleer alle gegevens zorgvuldig voordat u ondertekent.<br><br>Met vriendelijke groet,<br>Team SLIM Subsidie',
+      message: 'Beste aanvrager,<br><br>Hierbij ontvangt u de subsidieaanvraag ter ondertekening. Controleer alle gegevens zorgvuldig voordat u ondertekent.<br><br>Met vriendelijke groet,<br>Team Mister Subsidie',
       recipients: [{
         id: 'recipient_1',
         name: primarySigner.name,
@@ -108,10 +108,11 @@ export async function createSignWellTemplateSession(
         company_name: companyNameTab?.value || '',
         kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
         submission_date: new Date().toISOString(),
-        source: 'mister-subsidie-frontend'
+        source: 'mister-subsidie-api',
       },
       test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
       draft: false,
+      language: 'nl',
       send_email: true, // Always send emails unless explicitly disabled
     };
 
@@ -190,6 +191,6 @@ export async function createSignWellTemplateSession(
 
 app.http('createSignWellTemplateSession', {
   methods: ['POST', 'OPTIONS'],
-  authLevel: 'anonymous',
+  authLevel: 'function', // Requires function key for access
   handler: createSignWellTemplateSession,
 });

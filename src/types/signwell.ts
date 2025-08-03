@@ -58,6 +58,7 @@ export interface CreateDocumentRequest {
   custom_requester_email?: string;
   metadata?: Record<string, any>;
   draft?: boolean;
+  language?: string;
   send_email?: boolean;
   embedded_signing_notifications?: boolean;
 }
