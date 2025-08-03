@@ -108,20 +108,31 @@ export async function signwellWebhook(
                   signerEmail: webhookData.event.related_signer?.email,
                 };
                 
+                // Format date as DD-MM-YYYY
+                const date = new Date(metadata.signedAt);
+                const formattedDate = `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+                
                 // Prepare documents for upload
                 const documentsToUpload: { buffer: Buffer; fileName: string }[] = [];
                 
                 // Add full document
                 documentsToUpload.push({
                   buffer: splitPdfs.fullDocument,
-                  fileName: `SLIM_Aanvraag_Complete_${document.id.slice(-8)}.pdf`
+                  fileName: `SLIM Aanvraag ${metadata.companyName} ${formattedDate}.pdf`
                 });
                 
-                // Add individual pages
+                // Add individual pages with specific names
+                const pageNames = [
+                  'De-minimisverklaring',
+                  'Machtigingsformulier',
+                  'MKB Verklaring SLIM'
+                ];
+                
                 splitPdfs.originalFiles.forEach((file, index) => {
+                  const pageName = pageNames[index] || `Document ${index + 1}`;
                   documentsToUpload.push({
                     buffer: file.buffer,
-                    fileName: `SLIM_Aanvraag_Pagina_${index + 1}.pdf`
+                    fileName: `${pageName} ${metadata.companyName} ${formattedDate}.pdf`
                   });
                 });
                 
@@ -129,7 +140,7 @@ export async function signwellWebhook(
                 if (splitPdfs.auditTrail) {
                   documentsToUpload.push({
                     buffer: splitPdfs.auditTrail,
-                    fileName: `SLIM_Audit_Trail_${document.id.slice(-8)}.pdf`
+                    fileName: `Audit Trail ${metadata.companyName} ${formattedDate}.pdf`
                   });
                 }
                 
