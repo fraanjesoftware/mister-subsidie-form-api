@@ -140,9 +140,9 @@ export async function createSignWellTemplateSession(
     // Get the signing URL for the primary signer
     const signingUrl = signwellService.getEmbeddedSigningUrl(document, 'recipient_1');
     
-    if (!signingUrl) {
-      throw new Error('Failed to get signing URL from SignWell response');
-    }
+    // if (!signingUrl) {
+    //   throw new Error('Failed to get signing URL from SignWell response');
+    // } Remove for now due to email signing
 
     // Return the expected response format
     return {
