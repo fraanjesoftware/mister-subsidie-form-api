@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { SignWellService } from '../services/signwellService';
 import { CreateDocumentRequest } from '../types/signwell';
-import { mapRecipientTabsToTemplateFields, RecipientTabs } from '../utils/signwellFieldMapper';
+import { mapRecipientTabsToTemplateFields, mapRecipientTabsToTemplateFieldsWithRecipient, RecipientTabs } from '../utils/signwellFieldMapper';
 
 interface FrontendSigner {
   email: string;
@@ -74,8 +74,19 @@ export async function createSignWellTemplateSession(
     );
     
     // Map frontend tabs to SignWell template fields
-    const templateFields = mapRecipientTabsToTemplateFields(primarySigner.tabs);
-    context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name}`);
+    let templateFields: any[];
+    
+    if (hasSecondSignerFields || secondSigner) {
+      // For multi-signer template, map fields with recipient IDs
+      const primaryFields = mapRecipientTabsToTemplateFieldsWithRecipient(primarySigner.tabs, 'recipient_1', false);
+      const secondaryFields = mapRecipientTabsToTemplateFieldsWithRecipient(primarySigner.tabs, 'recipient_2', true);
+      templateFields = [...primaryFields, ...secondaryFields];
+      context.log(`Mapped ${primaryFields.length} fields for primary signer and ${secondaryFields.length} fields for second signer`);
+    } else {
+      // For single-signer template, use the original mapping
+      templateFields = mapRecipientTabsToTemplateFields(primarySigner.tabs);
+      context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name}`);
+    }
 
     // Generate document name from company name
     const companyNameTab = primarySigner.tabs.textTabs?.find(tab => tab.tabLabel === 'bedrijfsnaam');
@@ -153,7 +164,6 @@ export async function createSignWellTemplateSession(
       },
       test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
       draft: false,
-      language: 'nl',
       send_email: true, // Always send emails unless explicitly disabled
     };
 

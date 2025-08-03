@@ -73,6 +73,51 @@ export function mapListTabs(listTabs: ListTab[], recipientId: string): SignWellF
 }
 
 /**
+ * Maps recipient tabs to template fields for multi-signer templates
+ * @param tabs - The tabs data from the frontend
+ * @param recipientId - The recipient ID ('recipient_1' or 'recipient_2')
+ * @param isSecondSigner - Whether this is for the second signer
+ */
+export function mapRecipientTabsToTemplateFieldsWithRecipient(
+  tabs: RecipientTabs, 
+  recipientId: string,
+  isSecondSigner: boolean = false
+): Array<{ api_id: string; value: string | boolean; recipient_id: string }> {
+  const templateFields: Array<{ api_id: string; value: string | boolean; recipient_id: string }> = [];
+  
+  if (isSecondSigner) {
+    // For second signer, only map the second signer fields
+    const secondSignerFields = ['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'];
+    
+    if (tabs.textTabs) {
+      tabs.textTabs.forEach(tab => {
+        if (secondSignerFields.includes(tab.tabLabel)) {
+          templateFields.push({
+            api_id: tab.tabLabel,
+            value: tab.value,
+            recipient_id: recipientId,
+          });
+        }
+      });
+    }
+  } else {
+    // For primary signer, map all fields except second signer fields
+    const fields = mapRecipientTabsToTemplateFields(tabs);
+    fields.forEach(field => {
+      // Skip second signer fields for primary recipient
+      if (!['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'].includes(field.api_id)) {
+        templateFields.push({
+          ...field,
+          recipient_id: recipientId,
+        });
+      }
+    });
+  }
+  
+  return templateFields;
+}
+
+/**
  * Maps all recipient tabs to SignWell template fields
  * Handles duplicate fields (e.g., bedrijfsnaam_2, bedrijfsnaam_3) that represent the same value
  */
@@ -95,6 +140,10 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
     'voorletters-tekenbevoegde',
     'achternaam-tekenbevoegde',
     'functie', 'functie_2',
+    // Second signer fields for two-signer template
+    'voorletters-tekenbevoegde-2',
+    'achternaam-tekenbevoegde-2',
+    'functie-tekenbevoegde-2',
     'fte',
     'jaaromzet',
     'balanstotaal',
