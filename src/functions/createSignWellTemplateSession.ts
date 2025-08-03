@@ -68,10 +68,23 @@ export async function createSignWellTemplateSession(
     // Check if we have a second signer
     const secondSigner = body.signers.find(s => s.roleName === 'SecondSigner');
     
-    // Check if second signer fields are provided
-    const hasSecondSignerFields = primarySigner.tabs.textTabs?.some(tab => 
-      ['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'].includes(tab.tabLabel)
-    );
+    // Check if second signer fields are provided and ALL have non-empty values
+    const secondSignerFieldValues = {
+      voorletters: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'voorletters-tekenbevoegde-2')?.value || '',
+      achternaam: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'achternaam-tekenbevoegde-2')?.value || '',
+      functie: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'functie-tekenbevoegde-2')?.value || ''
+    };
+    
+    const hasSecondSignerFields = 
+      secondSignerFieldValues.voorletters.trim() !== '' &&
+      secondSignerFieldValues.achternaam.trim() !== '' &&
+      secondSignerFieldValues.functie.trim() !== '';
+    
+    context.log('Second signer check:', {
+      hasSecondSignerFields,
+      secondSigner: !!secondSigner,
+      fieldValues: secondSignerFieldValues
+    });
     
     // Map frontend tabs to SignWell template fields
     let templateFields: any[];
@@ -106,14 +119,11 @@ export async function createSignWellTemplateSession(
       order: 1,
     }];
 
-    // Add second signer if we have second signer fields
+    // Add second signer if we have second signer fields or an explicit second signer
     if (hasSecondSignerFields || secondSigner) {
       // Get second signer details from fields or from explicit second signer
-      const voorlettersTab = primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'voorletters-tekenbevoegde-2');
-      const achternaamTab = primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'achternaam-tekenbevoegde-2');
-      
       const secondSignerName = secondSigner?.name || 
-        (voorlettersTab && achternaamTab ? `${voorlettersTab.value} ${achternaamTab.value}`.trim() : 'Tweede Ondertekenaar');
+        `${secondSignerFieldValues.voorletters} ${secondSignerFieldValues.achternaam}`.trim();
       
       const secondSignerEmail = secondSigner?.email || primarySigner.email; // Use primary signer's email if not provided
       
