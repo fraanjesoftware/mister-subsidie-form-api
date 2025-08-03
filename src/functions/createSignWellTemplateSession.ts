@@ -96,9 +96,9 @@ export async function createSignWellTemplateSession(
       templateFields = [...primaryFields, ...secondaryFields];
       context.log(`Mapped ${primaryFields.length} fields for primary signer and ${secondaryFields.length} fields for second signer`);
     } else {
-      // For single-signer template, use the original mapping
-      templateFields = mapRecipientTabsToTemplateFields(primarySigner.tabs);
-      context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name}`);
+      // For single-signer template, use the original mapping but exclude second signer fields
+      templateFields = mapRecipientTabsToTemplateFields(primarySigner.tabs, true);
+      context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name} (excluding second signer fields)`);
     }
 
     // Generate document name from company name

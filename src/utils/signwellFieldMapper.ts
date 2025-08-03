@@ -102,7 +102,7 @@ export function mapRecipientTabsToTemplateFieldsWithRecipient(
     }
   } else {
     // For primary signer, map all fields except second signer fields
-    const fields = mapRecipientTabsToTemplateFields(tabs);
+    const fields = mapRecipientTabsToTemplateFields(tabs, false); // Don't exclude here, we handle it below
     fields.forEach(field => {
       // Skip second signer fields for primary recipient
       if (!['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'].includes(field.api_id)) {
@@ -120,8 +120,13 @@ export function mapRecipientTabsToTemplateFieldsWithRecipient(
 /**
  * Maps all recipient tabs to SignWell template fields
  * Handles duplicate fields (e.g., bedrijfsnaam_2, bedrijfsnaam_3) that represent the same value
+ * @param tabs - The tabs data
+ * @param excludeSecondSignerFields - Whether to exclude second signer fields (for single-signer templates)
  */
-export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ api_id: string; value: string | boolean }> {
+export function mapRecipientTabsToTemplateFields(
+  tabs: RecipientTabs, 
+  excludeSecondSignerFields: boolean = false
+): Array<{ api_id: string; value: string | boolean }> {
   const templateFields: Array<{ api_id: string; value: string | boolean }> = [];
   const fieldValues: Record<string, string | boolean> = {};
   
@@ -162,6 +167,13 @@ export function mapRecipientTabsToTemplateFields(tabs: RecipientTabs): Array<{ a
   // Map text tabs
   if (tabs.textTabs) {
     tabs.textTabs.forEach(tab => {
+      // Skip second signer fields if requested
+      if (excludeSecondSignerFields && 
+          ['voorletters-tekenbevoegde-2', 'achternaam-tekenbevoegde-2', 'functie-tekenbevoegde-2'].includes(tab.tabLabel)) {
+        console.log(`Skipping second signer field '${tab.tabLabel}' for single-signer template`);
+        return;
+      }
+      
       // Only process fields that exist in the template
       if (!validTemplateFields.includes(tab.tabLabel)) {
         console.log(`Skipping field '${tab.tabLabel}' - not in template`);
