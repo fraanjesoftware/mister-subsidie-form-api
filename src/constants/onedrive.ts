@@ -13,8 +13,7 @@ export const ONEDRIVE_CONFIG = {
   RETRY_MULTIPLIER: 2,
   
   // Folder structure
-  DEFAULT_ROOT_FOLDER: '/SLIM Subsidies 2025',
-  COMPLETED_FOLDER: 'Completed Documents',
+  FOLDER_PREFIX: 'SLIM Subsidies',
   
   // File naming
   DATE_FORMAT: 'yyyy-MM-MMMM', // 2025-01-January

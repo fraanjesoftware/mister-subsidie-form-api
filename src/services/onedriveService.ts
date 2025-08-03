@@ -21,7 +21,7 @@ export class OneDriveService {
       clientId: config?.clientId || process.env.ONEDRIVE_CLIENT_ID || '',
       clientSecret: config?.clientSecret || process.env.ONEDRIVE_CLIENT_SECRET || '',
       tenantId: config?.tenantId || process.env.ONEDRIVE_TENANT_ID || '',
-      rootFolder: config?.rootFolder || process.env.ONEDRIVE_ROOT_FOLDER || ONEDRIVE_CONFIG.DEFAULT_ROOT_FOLDER,
+      rootFolder: '', // Not used anymore - we generate it dynamically
       userId: config?.userId || process.env.ONEDRIVE_USER_ID,
       siteId: config?.siteId || process.env.ONEDRIVE_SITE_ID,
     };
@@ -99,13 +99,14 @@ export class OneDriveService {
     const date = new Date(metadata.signedAt);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const monthName = date.toLocaleString('en-US', { month: 'long' });
     
     // Sanitize company name for folder name
-    const sanitizedCompanyName = this.sanitizeFileName(`${metadata.companyName} - ${metadata.kvkNumber}`);
+    const sanitizedCompanyName = this.sanitizeFileName(metadata.companyName);
     
-    // Build folder path: /SLIM Subsidies 2025/Completed Documents/2025-01-January/Company Name - KVK
-    const folderPath = `${this.config.rootFolder}/${ONEDRIVE_CONFIG.COMPLETED_FOLDER}/${year}-${month}-${monthName}/${sanitizedCompanyName}`;
+    // Build folder path: /SLIM Subsidies 2025/Company Name 08 - 12345678
+    const rootFolder = `SLIM Subsidies ${year}`;
+    const companyFolder = `${sanitizedCompanyName} ${month} - ${metadata.kvkNumber}`;
+    const folderPath = `${rootFolder}/${companyFolder}`;
     
     // Create folders recursively
     const folderId = await this.createFolderRecursive(folderPath);
