@@ -98,14 +98,17 @@ export class OneDriveService {
 
     const date = new Date(metadata.signedAt);
     const year = date.getFullYear();
+    const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
     
     // Sanitize company name for folder name
     const sanitizedCompanyName = this.sanitizeFileName(metadata.companyName);
     
-    // Build folder path: /SLIM Subsidies 2025/Company Name 08 - 12345678
+    // Build folder path: /SLIM Subsidies 2025/Company Name - 15-11-2024 14-35
     const rootFolder = `SLIM Subsidies ${year}`;
-    const companyFolder = `${sanitizedCompanyName} ${month} - ${metadata.kvkNumber}`;
+    const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year} ${hours}-${minutes}`;
     const folderPath = `${rootFolder}/${companyFolder}`;
     
     // Create folders recursively
