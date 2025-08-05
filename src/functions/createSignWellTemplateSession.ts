@@ -101,6 +101,34 @@ export async function createSignWellTemplateSession(
       context.log(`Mapped ${templateFields.length} template fields for ${primarySigner.name} (excluding second signer fields)`);
     }
 
+    // Add default fields from environment variables
+    const defaultFields = [
+      {
+        api_id: 'gemachtigde',
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE || 'Tim Otte/NOT-Company bv h.o.d.n. Mistersubsidie'
+      },
+      {
+        api_id: 'gemachtigde_email',
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_EMAIL || 'Tim@mistersubsidie.nl'
+      },
+      {
+        api_id: 'gemachtigde_naam',
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_NAAM || 'Time Otte'
+      },
+      {
+        api_id: 'gemachtigde_telefoon',
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_TELEFOON || '0 6 1 1 2 4 1 3 6 0'
+      },
+      {
+        api_id: 'gemachtigde_kvk',
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_KVK || '2 4 3 5 3 0 3 1'
+      }
+    ];
+
+    // Add default fields to template fields
+    templateFields = [...templateFields, ...defaultFields];
+    context.log(`Added ${defaultFields.length} default fields from environment variables`);
+
     // Generate document name from company name
     const companyNameTab = primarySigner.tabs.textTabs?.find(tab => tab.tabLabel === 'bedrijfsnaam');
     const documentName = companyNameTab 
@@ -166,8 +194,6 @@ export async function createSignWellTemplateSession(
       ],
       embedded_signing: false,
       redirect_uri: body.returnUrl,
-      custom_requester_name: 'Mister Subsidie',
-      custom_requester_email: "Wout@mistersubsidie.nl",
       metadata: {
         company_name: companyNameTab?.value || '',
         kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
