@@ -172,26 +172,7 @@ export async function createSignWellTemplateSession(
       subject: 'SLIM Subsidie - Ondertekeningsverzoek',
       message: 'Beste aanvrager,<br><br>Hierbij ontvangt u de subsidieaanvraag ter ondertekening. Controleer alle gegevens zorgvuldig voordat u ondertekent.<br><br>Met vriendelijke groet,<br>Team Mister Subsidie',
       recipients,
-      template_fields: templateFields,
-      // Add checkbox groups for radio button behavior
-      checkbox_groups: [
-        {
-          group_name: "de-minimis-group",
-          recipient_id: "recipient_1",
-          checkbox_ids: ["geen", "wel", "andere"],
-          validation: "exact",
-          exact_value: 1,
-          required: true
-        },
-        {
-          group_name: "company-size-group",
-          recipient_id: "recipient_1", 
-          checkbox_ids: ["kleine", "middel", "grote"],
-          validation: "exact",
-          exact_value: 1,
-          required: true
-        }
-      ],
+      template_fields: templateFields,      
       embedded_signing: false,
       redirect_uri: body.returnUrl,
       metadata: {
