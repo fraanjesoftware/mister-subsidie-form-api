@@ -144,6 +144,7 @@ export function mapRecipientTabsToTemplateFields(
     'nace',
     'voorletters-tekenbevoegde',
     'achternaam-tekenbevoegde',
+    'functie-tekenbevoegde',
     'functie', 'functie_2',
     // Second signer fields for two-signer template
     'voorletters-tekenbevoegde-2',
