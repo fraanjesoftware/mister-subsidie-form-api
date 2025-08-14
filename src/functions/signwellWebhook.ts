@@ -98,14 +98,33 @@ export async function signwellWebhook(
                 // Initialize OneDrive service
                 const onedriveService = new OneDriveService();
                 
+                // Check if this document was created through our API
+                const isApiDocument = document.metadata?.source === 'mister-subsidie-api';
+                
+                // Extract company name with fallback strategies
+                let companyName = document.metadata?.company_name;
+                
+                if (!companyName && !isApiDocument) {
+                  // For external documents, try to extract from document name
+                  // Pattern: "20251079 E.F. interieurafbouw raamovereenkomst" -> "E.F. interieurafbouw"
+                  const nameMatch = document.name.match(/^\d+\s+(.+?)\s+(raamovereenkomst|overeenkomst|contract|document).*$/i);
+                  if (nameMatch) {
+                    companyName = nameMatch[1].trim();
+                  } else {
+                    // Fallback: use document name without numbers
+                    companyName = document.name.replace(/^\d+\s+/, '').replace(/\.(pdf|docx?)$/i, '').trim();
+                  }
+                }
+                
                 // Extract metadata from document
                 const metadata: DocumentMetadata = {
-                  companyName: document.metadata?.company_name || 'Unknown Company',
-                  kvkNumber: document.metadata?.kvk_number || 'Unknown',
+                  companyName: companyName || 'Onbekend Bedrijf',
+                  kvkNumber: document.metadata?.kvk_number || 'Onbekend',
                   documentId: document.id,
                   signedAt: document.completed_at || new Date().toISOString(),
                   signerName: webhookData.event.related_signer?.name,
                   signerEmail: webhookData.event.related_signer?.email,
+                  isExternal: !isApiDocument, // Add flag for external documents
                 };
                 
                 // Format date as DD-MM-YYYY
@@ -115,26 +134,46 @@ export async function signwellWebhook(
                 // Prepare documents for upload
                 const documentsToUpload: { buffer: Buffer; fileName: string }[] = [];
                 
-                // Add full document
-                documentsToUpload.push({
-                  buffer: splitPdfs.fullDocument,
-                  fileName: `SLIM Aanvraag ${metadata.companyName} ${formattedDate}.pdf`
-                });
+                // Add full document with different naming based on source
+                if (metadata.isExternal) {
+                  // For external documents, use original document name with date
+                  documentsToUpload.push({
+                    buffer: splitPdfs.fullDocument,
+                    fileName: `${document.name} - ${formattedDate}.pdf`
+                  });
+                } else {
+                  // For API documents, use standard naming
+                  documentsToUpload.push({
+                    buffer: splitPdfs.fullDocument,
+                    fileName: `SLIM Aanvraag ${metadata.companyName} ${formattedDate}.pdf`
+                  });
+                }
                 
                 // Add individual pages with specific names
-                const pageNames = [
-                  'De-minimisverklaring',
-                  'Machtigingsformulier',
-                  'MKB Verklaring SLIM'
-                ];
-                
-                splitPdfs.originalFiles.forEach((file, index) => {
-                  const pageName = pageNames[index] || `Document ${index + 1}`;
-                  documentsToUpload.push({
-                    buffer: file.buffer,
-                    fileName: `${pageName} ${metadata.companyName} ${formattedDate}.pdf`
+                if (!metadata.isExternal) {
+                  // For API documents, use standard page naming
+                  const pageNames = [
+                    'De-minimisverklaring',
+                    'Machtigingsformulier',
+                    'MKB Verklaring SLIM'
+                  ];
+                  
+                  splitPdfs.originalFiles.forEach((file, index) => {
+                    const pageName = pageNames[index] || `Document ${index + 1}`;
+                    documentsToUpload.push({
+                      buffer: file.buffer,
+                      fileName: `${pageName} ${metadata.companyName} ${formattedDate}.pdf`
+                    });
                   });
-                });
+                } else {
+                  // For external documents, use original file names
+                  splitPdfs.originalFiles.forEach((file) => {
+                    documentsToUpload.push({
+                      buffer: file.buffer,
+                      fileName: `${file.name} - ${formattedDate}.pdf`
+                    });
+                  });
+                }
                 
                 // Add audit trail if exists
                 if (splitPdfs.auditTrail) {

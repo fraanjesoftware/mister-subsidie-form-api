@@ -106,10 +106,20 @@ export class OneDriveService {
     // Sanitize company name for folder name
     const sanitizedCompanyName = this.sanitizeFileName(metadata.companyName);
     
-    // Build folder path: /SLIM Subsidies 2025/Company Name - 15-11-2024 14-35
-    const rootFolder = `SLIM Subsidies ${year}`;
-    const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year} ${hours}-${minutes}`;
-    const folderPath = `${rootFolder}/${companyFolder}`;
+    // Different folder structure for external documents
+    let folderPath: string;
+    if (metadata.isExternal) {
+      // External documents go to: /SignWell Documenten/2025/Company Name - 15-11-2025
+      const rootFolder = `SignWell Documenten`;
+      const yearFolder = String(year);
+      const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year}`;
+      folderPath = `${rootFolder}/${yearFolder}/${companyFolder}`;
+    } else {
+      // API documents go to: /SLIM Subsidies 2025/Company Name - 15-11-2025 14-35
+      const rootFolder = `SLIM Subsidies ${year}`;
+      const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year} ${hours}-${minutes}`;
+      folderPath = `${rootFolder}/${companyFolder}`;
+    }
     
     // Create folders recursively
     const folderId = await this.createFolderRecursive(folderPath);

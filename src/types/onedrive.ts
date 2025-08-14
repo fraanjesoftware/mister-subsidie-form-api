@@ -57,4 +57,5 @@ export interface DocumentMetadata {
   signedAt: string;
   signerName?: string;
   signerEmail?: string;
+  isExternal?: boolean;
 }
