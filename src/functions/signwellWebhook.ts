@@ -75,14 +75,18 @@ export async function signwellWebhook(
             const pdfBuffer = await signwellService.getCompletedPdf(document.id);
             context.log(`Downloaded PDF for document ${document.id}, size: ${pdfBuffer.length} bytes`);
             
+            // Check if this document was created through our API
+            const isApiDocument = document.metadata?.source === 'mister-subsidie-api';
+            
             // Split the PDF
-            const splitPdfs = await splitSignedPdf(pdfBuffer, document.files, context);
+            const splitPdfs = await splitSignedPdf(pdfBuffer, document.files, context, isApiDocument);
             
             // Log results
             context.log('PDF split results:', {
               originalFiles: splitPdfs.originalFiles.length,
               auditTrail: splitPdfs.auditTrail ? 'Yes' : 'No',
-              fullDocument: splitPdfs.fullDocument.length + ' bytes'
+              fullDocument: splitPdfs.fullDocument.length + ' bytes',
+              isApiDocument
             });
             
             // Check if OneDrive is configured
@@ -151,11 +155,12 @@ export async function signwellWebhook(
                 
                 // Add individual pages with specific names
                 if (!metadata.isExternal) {
-                  // For API documents, use standard page naming
+                  // For API documents, use standard page naming (updated for new structure)
                   const pageNames = [
                     'De-minimisverklaring',
                     'Machtigingsformulier',
-                    'MKB Verklaring SLIM'
+                    'MKB Verklaring SLIM',
+                    'Overeenkomst Dienstverlening'
                   ];
                   
                   splitPdfs.originalFiles.forEach((file, index) => {
@@ -267,7 +272,8 @@ export async function signwellWebhook(
 async function splitSignedPdf(
   pdfBuffer: Buffer,
   fileInfo: Array<{ name: string; pages_number: number }>,
-  context: InvocationContext
+  context: InvocationContext,
+  isApiDocument: boolean = false
 ): Promise<{
   fullDocument: Buffer;
   originalFiles: Array<{ name: string; buffer: Buffer }>;
@@ -286,8 +292,49 @@ async function splitSignedPdf(
     
     context.log(`Expected content pages: ${expectedPages}, Audit pages: ${auditPages}`);
     
+    // For external documents with single file, don't split
+    if (!isApiDocument && fileInfo.length === 1 && auditPages <= 1) {
+      context.log('External single document detected - skipping split');
+      
+      // Still extract audit trail if present
+      let auditTrail: Buffer | null = null;
+      if (auditPages === 1) {
+        const auditPdf = await PDFDocument.create();
+        const [copiedPage] = await auditPdf.copyPages(pdfDoc, [totalPages - 1]);
+        auditPdf.addPage(copiedPage);
+        const auditBytes = await auditPdf.save();
+        auditTrail = Buffer.from(auditBytes);
+      }
+      
+      return {
+        fullDocument: pdfBuffer,
+        originalFiles: [], // Don't split external single documents
+        auditTrail
+      };
+    }
+    
     const originalFiles: Array<{ name: string; buffer: Buffer }> = [];
     let currentPage = 0;
+    
+    // Validate page counts for API documents
+    if (isApiDocument && fileInfo.length > 0) {
+      // Expected structure for SLIM documents (updated: MKB now 1 page, added Overeenkomst)
+      const expectedStructure = [
+        { name: 'de-minimisverklaring', expectedPages: 3 },
+        { name: 'machtigingsformulier', expectedPages: 2 },
+        { name: 'mkb verklaring', expectedPages: 1 },
+        { name: 'overeenkomst dienstverlening', expectedPages: 1 }
+      ];
+      
+      // Check if structure matches (loosely - by page count pattern)
+      const pagePattern = fileInfo.map(f => f.pages_number).join(',');
+      const expectedPattern = expectedStructure.map(s => s.expectedPages).join(',');
+      
+      if (pagePattern !== expectedPattern && fileInfo.length === 4) {
+        context.warn(`Page structure mismatch for API document. Expected: ${expectedPattern}, Got: ${pagePattern}`);
+        context.warn('Template may have been modified - splitting may be inaccurate');
+      }
+    }
     
     // Split original files
     for (const file of fileInfo) {
@@ -295,8 +342,10 @@ async function splitSignedPdf(
       
       // Copy pages for this file
       for (let i = 0; i < file.pages_number; i++) {
-        const [copiedPage] = await newPdf.copyPages(pdfDoc, [currentPage + i]);
-        newPdf.addPage(copiedPage);
+        if (currentPage + i < expectedPages) {
+          const [copiedPage] = await newPdf.copyPages(pdfDoc, [currentPage + i]);
+          newPdf.addPage(copiedPage);
+        }
       }
       
       const pdfBytes = await newPdf.save();
@@ -311,7 +360,7 @@ async function splitSignedPdf(
     
     // Extract audit trail/certificate pages if they exist
     let auditTrail: Buffer | null = null;
-    if (auditPages > 0) {
+    if (auditPages > 0 && expectedPages < totalPages) {
       const auditPdf = await PDFDocument.create();
       
       // Copy audit pages (usually at the end)
@@ -323,6 +372,8 @@ async function splitSignedPdf(
       const auditBytes = await auditPdf.save();
       auditTrail = Buffer.from(auditBytes);
       context.log(`Extracted audit trail: ${auditPages} pages`);
+    } else if (auditPages < 0) {
+      context.warn(`Warning: Document has fewer pages (${totalPages}) than expected (${expectedPages})`);
     }
     
     return {
