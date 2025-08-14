@@ -106,17 +106,21 @@ export class OneDriveService {
     // Sanitize company name for folder name
     const sanitizedCompanyName = this.sanitizeFileName(metadata.companyName);
     
+    // Get folder names from environment variables with fallbacks
+    const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
+    const externalRootFolderName = process.env.ONEDRIVE_EXTERNAL_FOLDER_NAME || 'SignWell Documenten';
+    
     // Different folder structure for external documents
     let folderPath: string;
     if (metadata.isExternal) {
-      // External documents go to: /SignWell Documenten/2025/Company Name - 15-11-2025
-      const rootFolder = `SignWell Documenten`;
+      // External documents go to: /[ExternalFolderName]/2025/Company Name - 15-11-2025
+      const rootFolder = externalRootFolderName;
       const yearFolder = String(year);
       const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year}`;
       folderPath = `${rootFolder}/${yearFolder}/${companyFolder}`;
     } else {
-      // API documents go to: /SLIM Subsidies 2025/Company Name - 15-11-2025 14-35
-      const rootFolder = `SLIM Subsidies ${year}`;
+      // API documents go to: /[APIFolderName] 2025/Company Name - 15-11-2025 14-35
+      const rootFolder = `${apiRootFolderName} ${year}`;
       const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year} ${hours}-${minutes}`;
       folderPath = `${rootFolder}/${companyFolder}`;
     }
