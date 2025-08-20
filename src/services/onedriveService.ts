@@ -27,7 +27,11 @@ export class OneDriveService {
     };
 
     if (!this.config.clientId || !this.config.clientSecret || !this.config.tenantId) {
-      throw new Error('OneDrive configuration incomplete: clientId, clientSecret, and tenantId are required');
+      const missingVars = [];
+      if (!this.config.clientId) missingVars.push('ONEDRIVE_CLIENT_ID');
+      if (!this.config.clientSecret) missingVars.push('ONEDRIVE_CLIENT_SECRET');
+      if (!this.config.tenantId) missingVars.push('ONEDRIVE_TENANT_ID');
+      throw new Error(`OneDrive configuration incomplete. Missing: ${missingVars.join(', ')}`);
     }
 
     this.graphClient = axios.create({
@@ -341,6 +345,14 @@ export class OneDriveService {
       const graphError = error.response?.data as OneDriveError;
       if (graphError?.error) {
         return `${graphError.error.code}: ${graphError.error.message}`;
+      }
+      // If the error response has a different structure
+      if (error.response?.data) {
+        return `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
+      }
+      // If there's no response (network error)
+      if (error.code) {
+        return `Network error (${error.code}): ${error.message}`;
       }
       return error.message;
     }
