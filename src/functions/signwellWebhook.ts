@@ -205,7 +205,18 @@ export async function signwellWebhook(
                 
               } catch (uploadError) {
                 context.error('Failed to upload to OneDrive:', uploadError);
-                // Don't fail the webhook - log error and continue
+                // Fail the webhook so SignWell knows there was an error
+                return {
+                  status: 500,
+                  body: JSON.stringify({
+                    error: 'OneDrive upload failed',
+                    message: uploadError instanceof Error ? uploadError.message : 'Unknown error',
+                    documentId: webhookData.data.object.id
+                  }),
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                };
               }
             } else {
               context.log('OneDrive not configured - skipping upload');

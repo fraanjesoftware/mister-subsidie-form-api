@@ -260,7 +260,7 @@ export class OneDriveService {
       // Upload in chunks
       while (uploadedBytes < fileSize) {
         const chunkSize = Math.min(ONEDRIVE_CONFIG.CHUNK_SIZE, fileSize - uploadedBytes);
-        const chunk = buffer.slice(uploadedBytes, uploadedBytes + chunkSize);
+        const chunk = buffer.subarray(uploadedBytes, uploadedBytes + chunkSize);
         
         const contentRange = `bytes ${uploadedBytes}-${uploadedBytes + chunkSize - 1}/${fileSize}`;
         
