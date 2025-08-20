@@ -17,6 +17,11 @@ export class OneDriveService {
   private graphClient: AxiosInstance;
 
   constructor(config?: Partial<OneDriveConfig>) {
+    // Check if axios is available
+    if (!axios) {
+      throw new Error('axios is not available. Please ensure axios is installed.');
+    }
+    
     this.config = {
       clientId: config?.clientId || process.env.ONEDRIVE_CLIENT_ID || '',
       clientSecret: config?.clientSecret || process.env.ONEDRIVE_CLIENT_SECRET || '',
@@ -74,6 +79,22 @@ export class OneDriveService {
       
       return this.accessToken;
     } catch (error) {
+      // Log raw error for debugging
+      console.error('OneDrive authentication raw error:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error?.constructor?.name);
+      
+      // Try to get more details
+      if (error && typeof error === 'object') {
+        console.error('Error keys:', Object.keys(error));
+        if ('response' in error) {
+          console.error('Error response:', error.response);
+        }
+        if ('message' in error) {
+          console.error('Error message:', error.message);
+        }
+      }
+      
       throw new Error(`Failed to authenticate with OneDrive: ${this.formatError(error)}`);
     }
   }
@@ -341,21 +362,53 @@ export class OneDriveService {
    * Format error message
    */
   private formatError(error: any): string {
-    if (axios.isAxiosError(error)) {
-      const graphError = error.response?.data as OneDriveError;
-      if (graphError?.error) {
-        return `${graphError.error.code}: ${graphError.error.message}`;
-      }
-      // If the error response has a different structure
+    // Handle null or undefined
+    if (!error) {
+      return 'Unknown error (null or undefined)';
+    }
+    
+    // Check if axios is available and if it's an axios error
+    if (typeof axios !== 'undefined' && axios.isAxiosError && axios.isAxiosError(error)) {
+      // Handle Azure AD authentication errors (different structure than Graph API errors)
       if (error.response?.data) {
-        return `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
+        const data = error.response.data;
+        
+        // Azure AD OAuth errors have error and error_description at root level
+        if (typeof data.error === 'string' && data.error_description) {
+          return `${data.error}: ${data.error_description}`;
+        }
+        
+        // Graph API errors have nested error object
+        const graphError = data as OneDriveError;
+        if (graphError?.error?.code && graphError?.error?.message) {
+          return `${graphError.error.code}: ${graphError.error.message}`;
+        }
+        
+        // Fallback to showing full response
+        return `HTTP ${error.response.status}: ${JSON.stringify(data)}`;
       }
       // If there's no response (network error)
       if (error.code) {
         return `Network error (${error.code}): ${error.message}`;
       }
+      return error.message || 'Unknown axios error';
+    }
+    
+    // Handle regular Error objects
+    if (error instanceof Error) {
       return error.message;
     }
-    return error instanceof Error ? error.message : 'Unknown error';
+    
+    // Handle objects with message property
+    if (typeof error === 'object' && 'message' in error) {
+      return String(error.message);
+    }
+    
+    // Last resort - stringify the error
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
   }
 }

@@ -85,12 +85,54 @@ export async function health(_request: HttpRequest, context: InvocationContext):
             externalFolder: process.env.ONEDRIVE_EXTERNAL_FOLDER_NAME || 'SignWell Documenten'
         };
         
-    } catch (error) {
-        checks.checks.onedrive.status = 'fail';
-        checks.checks.onedrive.details = {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            authenticated: false
+    } catch (error: any) {
+        // Capture detailed error information
+        const errorDetails: any = {
+            authenticated: false,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorType: error?.constructor?.name || typeof error
         };
+        
+        // Add more details if available
+        if (error && typeof error === 'object') {
+            // Check for response data (axios errors)
+            if ('response' in error && error.response) {
+                errorDetails.httpStatus = error.response.status;
+                errorDetails.httpStatusText = error.response.statusText;
+                errorDetails.responseData = error.response.data;
+            }
+            
+            // Check for request data
+            if ('config' in error && error.config) {
+                errorDetails.requestUrl = error.config.url;
+                errorDetails.requestMethod = error.config.method;
+            }
+            
+            // Check for network errors
+            if ('code' in error) {
+                errorDetails.errorCode = error.code;
+            }
+            
+            // Add stack trace for debugging (first 3 lines)
+            if ('stack' in error && typeof error.stack === 'string') {
+                const stackLines = error.stack.split('\n').slice(0, 3);
+                errorDetails.stackTrace = stackLines;
+            }
+        }
+        
+        // Check if axios is available
+        errorDetails.axiosAvailable = typeof require !== 'undefined' ? 
+            (() => {
+                try {
+                    const ax = require('axios');
+                    return ax ? 'yes' : 'no';
+                } catch {
+                    return 'import failed';
+                }
+            })() : 'require not available';
+        
+        checks.checks.onedrive.status = 'fail';
+        checks.checks.onedrive.details = errorDetails;
         checks.status = 'unhealthy';
     }
     
