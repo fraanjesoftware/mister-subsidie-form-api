@@ -41,7 +41,7 @@ export function computeMetadataSource(tenantId: string, config: TenantConfig): s
 
   return tenantId === DEFAULT_TENANT_ID
     ? 'mister-subsidie-api'
-    : `mister-subsidie-api:${tenantId}`;
+    : tenantId;
 }
 
 export function getTenantConfig(tenantId?: string | null): TenantResolution {

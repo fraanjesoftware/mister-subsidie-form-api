@@ -22,7 +22,7 @@
       "gemachtigde_kvk": "2 4 3 5 3 0 3 1"
     },
     "signwell": {
-      "metadataSource": "mister-subsidie-api:mistersubsidie",
+      "metadataSource": "mistersubsidie",
       "twoSignerTemplateId": "5b0fd47c-f2e6-44da-8664-e9eeb8f0db6d",
       "templateId": "445dffb5-3284-4285-880e-e65338ded6a3"
     }
@@ -36,7 +36,7 @@
       "gemachtigde_kvk": "0 8 1 1 8 4 1 0"
     },
     "signwell": {
-      "metadataSource": "mister-subsidie-api:ignite",
+      "metadataSource": "ignite",
       "twoSignerTemplateId": "4693da48-37aa-4564-888e-54508c6e1fb5",
       "templateId": "0d4f7005-4e9f-45ad-baec-69b3caf2765f"
     }
