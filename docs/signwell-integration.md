@@ -48,7 +48,7 @@ This guide explains how to use the SignWell API integration for creating documen
     "applicationId": "12345",
     "userId": "user-123"
   },
-  "testMode": true  // Optional, overrides environment setting
+  "test": true  // Optional, overrides environment setting (legacy: testMode)
 }
 ```
 

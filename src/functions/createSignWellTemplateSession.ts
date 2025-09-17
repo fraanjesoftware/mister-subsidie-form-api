@@ -3,6 +3,7 @@ import { SignWellService } from '../services/signwellService';
 import { CreateDocumentRequest } from '../types/signwell';
 import { mapRecipientTabsToTemplateFields, mapRecipientTabsToTemplateFieldsWithRecipient, RecipientTabs } from '../utils/signwellFieldMapper';
 import { computeMetadataSource, getTenantConfig } from '../utils/tenantConfig';
+import { shouldUseTestMode } from '../utils/signwellHelpers';
 
 interface FrontendSigner {
   email: string;
@@ -16,6 +17,7 @@ interface CreateTemplateSigningSessionRequest {
   returnUrl: string;
   sendEmails?: boolean; // Optional: control email notifications
   testMode?: boolean; // Optional: override test mode
+  test?: boolean; // Optional: frontend toggle for SignWell test mode
   tenantId?: string; // Optional: tenant identifier for multi-tenant setup
 }
 
@@ -145,7 +147,13 @@ export async function createSignWellTemplateSession(
       : 'SLIM Subsidie Aanvraag';
 
     // Initialize SignWell service
-    const signwellService = new SignWellService();
+    const requestedTestMode = body.test ?? body.testMode;
+    const defaultTestMode = shouldUseTestMode();
+    const useTestMode = typeof requestedTestMode === 'boolean'
+      ? requestedTestMode
+      : defaultTestMode;
+
+    const signwellService = new SignWellService({ testMode: useTestMode });
 
     // Build recipients array
     const recipients = [{
@@ -191,7 +199,7 @@ export async function createSignWellTemplateSession(
         source: metadataSource,
         tenant_id: tenant.tenantId
       },
-      test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
+      test_mode: useTestMode,
       draft: false,
       send_email: true, // Always send emails unless explicitly disabled
     };

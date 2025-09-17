@@ -139,9 +139,11 @@ Creates a new signing session from a SignWell template.
   }],
   "returnUrl": "https://your-app.com/signing-complete",
   "sendEmails": true,
-  "testMode": true
+  "test": true
 }
 ```
+
+Both `test` and the legacy `testMode` flag are accepted; when either is supplied it overrides the environment configuration.
 
 **Response:**
 ```json
