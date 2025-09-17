@@ -7,6 +7,7 @@ import './functions/docusignWebhook';
 import './functions/createSignWellTemplateSession';
 import './functions/signwellWebhook';
 import './functions/health';
+import './functions/getGemachtigdeInfo';
 
 // You can add more function imports here as you create them
 // import './functions/anotherFunction';

@@ -113,7 +113,7 @@ export async function createSignWellTemplateSession(
       },
       {
         api_id: 'gemachtigde_naam',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_NAAM || 'Time Otte'
+        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_NAAM || 'Tim Otte'
       },
       {
         api_id: 'gemachtigde_telefoon',
