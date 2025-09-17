@@ -5,6 +5,9 @@ import { SignWellWebhookEvent } from '../types/signwell';
 import { SignWellService } from '../services/signwellService';
 import { OneDriveService } from '../services/onedriveService';
 import { DocumentMetadata } from '../types/onedrive';
+import { getKnownMetadataSources } from '../utils/tenantConfig';
+
+const TENANT_METADATA_SOURCES = getKnownMetadataSources();
 
 const SIGNWELL_API_APP_ID = process.env.SIGNWELL_API_APP_ID || 'd3957989-c389-4f24-aacc-74f507ccc59e';
 
@@ -62,22 +65,22 @@ export async function signwellWebhook(
           signer: webhookData.event.related_signer,
           files: document.files
         });
-        
+
         // Check if document is fully completed (webhook uses 'Completed' with capital C)
         if ((document as any).status === 'Completed' || document.status === 'completed') {
           context.log('Document is fully completed, downloading PDF...');
-          
+
           try {
             // Initialize SignWell service
             const signwellService = new SignWellService();
-            
+
             // Download the completed PDF
             const pdfBuffer = await signwellService.getCompletedPdf(document.id);
             context.log(`Downloaded PDF for document ${document.id}, size: ${pdfBuffer.length} bytes`);
-            
-            // Check if this document was created through our API
-            const isApiDocument = document.metadata?.source === 'mister-subsidie-api';
-            
+
+            const metadataSource = document.metadata?.source;
+            const isApiDocument = metadataSource ? TENANT_METADATA_SOURCES.has(metadataSource) : false;
+
             // Split the PDF
             const splitPdfs = await splitSignedPdf(pdfBuffer, document.files, context, isApiDocument);
             
@@ -86,7 +89,9 @@ export async function signwellWebhook(
               originalFiles: splitPdfs.originalFiles.length,
               auditTrail: splitPdfs.auditTrail ? 'Yes' : 'No',
               fullDocument: splitPdfs.fullDocument.length + ' bytes',
-              isApiDocument
+              isApiDocument,
+              metadataSource,
+              tenantId: document.metadata?.tenant_id || null
             });
             
             // Check if OneDrive is configured
@@ -97,14 +102,14 @@ export async function signwellWebhook(
             
             if (isOneDriveConfigured) {
               context.log('Uploading documents to OneDrive...');
-              
+
               try {
                 // Initialize OneDrive service
                 const onedriveService = new OneDriveService();
-                
+
                 // Check if this document was created through our API
-                const isApiDocument = document.metadata?.source === 'mister-subsidie-api';
-                
+                const isApiDocument = metadataSource ? TENANT_METADATA_SOURCES.has(metadataSource) : false;
+
                 // Extract company name with fallback strategies
                 let companyName = document.metadata?.company_name;
                 

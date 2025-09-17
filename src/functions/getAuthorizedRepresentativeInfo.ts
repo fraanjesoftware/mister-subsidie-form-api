@@ -1,56 +1,8 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import authorizedRepresentativesConfig from '../constants/authorizedRepresentatives.json';
-
-interface AuthorizedRepresentativeInfo {
-  gemachtigde: string;
-  gemachtigde_email: string;
-  gemachtigde_naam: string;
-  gemachtigde_telefoon: string;
-  gemachtigde_kvk: string;
-}
+import { getTenantConfig } from '../utils/tenantConfig';
 
 interface GetAuthorizedRepresentativeInfoRequest {
   id?: string;
-}
-
-const DEFAULT_ID = 'mistersubsidie';
-const authorizedRepresentatives: Record<string, AuthorizedRepresentativeInfo> = authorizedRepresentativesConfig;
-
-function pickAuthorizedRepresentative(id?: string): {
-  info: AuthorizedRepresentativeInfo;
-  selectedId: string;
-  resolvedFromDefault: boolean;
-} {
-  const normalizedId = id?.trim().toLowerCase();
-
-  if (normalizedId && authorizedRepresentatives[normalizedId]) {
-    return {
-      info: authorizedRepresentatives[normalizedId],
-      selectedId: normalizedId,
-      resolvedFromDefault: false
-    };
-  }
-
-  const fallback = authorizedRepresentatives['default'] || authorizedRepresentatives[DEFAULT_ID];
-
-  if (!fallback) {
-    const firstEntry = Object.entries(authorizedRepresentatives)[0];
-    if (!firstEntry) {
-      throw new Error('No authorized representative configuration available');
-    }
-
-    return {
-      info: firstEntry[1],
-      selectedId: firstEntry[0],
-      resolvedFromDefault: true
-    };
-  }
-
-  return {
-    info: fallback,
-    selectedId: fallback === authorizedRepresentatives[DEFAULT_ID] ? DEFAULT_ID : 'default',
-    resolvedFromDefault: true
-  };
 }
 
 export async function getAuthorizedRepresentativeInfo(
@@ -79,7 +31,8 @@ export async function getAuthorizedRepresentativeInfo(
       context.log('getAuthorizedRepresentativeInfo: failed to parse JSON body, falling back to default', parseError?.message);
     }
 
-    const { info, selectedId, resolvedFromDefault } = pickAuthorizedRepresentative(body.id);
+    const tenant = getTenantConfig(body.id);
+    const info = tenant.config.authorizedRepresentative;
 
     return {
       status: 200,
@@ -97,8 +50,8 @@ export async function getAuthorizedRepresentativeInfo(
         gemachtigde_kvk: info.gemachtigde_kvk,
         meta: {
           requestedId: body.id ?? null,
-          selectedId,
-          resolvedFromDefault
+          tenantId: tenant.tenantId,
+          resolvedFromDefault: tenant.resolvedFromDefault
         }
       })
     };

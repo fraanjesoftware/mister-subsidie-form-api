@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { SignWellService } from '../services/signwellService';
 import { CreateDocumentRequest } from '../types/signwell';
 import { mapRecipientTabsToTemplateFields, mapRecipientTabsToTemplateFieldsWithRecipient, RecipientTabs } from '../utils/signwellFieldMapper';
+import { computeMetadataSource, getTenantConfig } from '../utils/tenantConfig';
 
 interface FrontendSigner {
   email: string;
@@ -15,6 +16,7 @@ interface CreateTemplateSigningSessionRequest {
   returnUrl: string;
   sendEmails?: boolean; // Optional: control email notifications
   testMode?: boolean; // Optional: override test mode
+  tenantId?: string; // Optional: tenant identifier for multi-tenant setup
 }
 
 /**
@@ -46,6 +48,11 @@ export async function createSignWellTemplateSession(
 
     // Parse request body
     const body = await request.json() as CreateTemplateSigningSessionRequest;
+
+    const tenant = getTenantConfig(body.tenantId);
+    const authorizedRepresentative = tenant.config.authorizedRepresentative;
+    const tenantSignWellConfig = tenant.config.signwell || {};
+    const metadataSource = computeMetadataSource(tenant.tenantId, tenant.config);
     
     // Validate request
     if (!body.signers || body.signers.length === 0) {
@@ -105,29 +112,31 @@ export async function createSignWellTemplateSession(
     const defaultFields = [
       {
         api_id: 'gemachtigde',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE || 'Tim Otte/NOT-Company bv h.o.d.n. Mistersubsidie'
+        value: authorizedRepresentative.gemachtigde
       },
       {
         api_id: 'gemachtigde_email',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_EMAIL || 'Tim@mistersubsidie.nl'
+        value: authorizedRepresentative.gemachtigde_email
       },
       {
         api_id: 'gemachtigde_naam',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_NAAM || 'Tim Otte'
+        value: authorizedRepresentative.gemachtigde_naam
       },
       {
         api_id: 'gemachtigde_telefoon',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_TELEFOON || '0 6 1 1 2 4 1 3 6 0'
+        value: authorizedRepresentative.gemachtigde_telefoon
       },
       {
         api_id: 'gemachtigde_kvk',
-        value: process.env.MISTER_SUBSIDIE_GEMACHTIGDE_KVK || '2 4 3 5 3 0 3 1'
+        value: authorizedRepresentative.gemachtigde_kvk
       }
     ];
 
     // Add default fields to template fields
     templateFields = [...templateFields, ...defaultFields];
-    context.log(`Added ${defaultFields.length} default fields from environment variables`);
+    context.log(`Added ${defaultFields.length} default fields from tenant configuration`, {
+      tenantId: tenant.tenantId
+    });
 
     // Generate document name from company name
     const companyNameTab = primarySigner.tabs.textTabs?.find(tab => tab.tabLabel === 'bedrijfsnaam');
@@ -179,26 +188,56 @@ export async function createSignWellTemplateSession(
         company_name: companyNameTab?.value || '',
         kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
         submission_date: new Date().toISOString(),
-        source: 'mister-subsidie-api',
+        source: metadataSource,
+        tenant_id: tenant.tenantId
       },
       test_mode: body.testMode ?? (process.env.SIGNWELL_TEST_MODE === 'true'),
       draft: false,
       send_email: true, // Always send emails unless explicitly disabled
     };
 
+    const resolveTemplateId = (tenantValue?: string, envValue?: string, fallbackValue?: string) => {
+      if (tenantValue) {
+        return { id: tenantValue, source: 'tenantConfig' as const };
+      }
+      if (envValue) {
+        return { id: envValue, source: 'environment' as const };
+      }
+      return { id: fallbackValue ?? '', source: 'fallback' as const };
+    };
+
     // Determine which template to use based on number of signers
     let templateId: string;
+    let templateSource: 'tenantConfig' | 'environment' | 'fallback';
     
     if (hasSecondSignerFields || secondSigner) {
       // Use two-signer template
-      templateId = process.env.SIGNWELL_TWO_SIGNER_TEMPLATE_ID || '130fb2e1-f13d-4acb-a8ff-373f3698ad6d';
-      context.log('Using two-signer template');
+      const resolved = resolveTemplateId(
+        tenantSignWellConfig.twoSignerTemplateId,
+        process.env.SIGNWELL_TWO_SIGNER_TEMPLATE_ID,
+        '130fb2e1-f13d-4acb-a8ff-373f3698ad6d'
+      );
+      templateId = resolved.id;
+      templateSource = resolved.source;
+      context.log('Using two-signer template', {
+        templateSource,
+        tenantId: tenant.tenantId
+      });
     } else {
       // Use single-signer template from environment variable
-      templateId = process.env.SIGNWELL_TEMPLATE_ID || '';
-      context.log('Using single-signer template');
+      const resolved = resolveTemplateId(
+        tenantSignWellConfig.templateId,
+        process.env.SIGNWELL_TEMPLATE_ID,
+        undefined
+      );
+      templateId = resolved.id;
+      templateSource = resolved.source;
+      context.log('Using single-signer template', {
+        templateSource,
+        tenantId: tenant.tenantId
+      });
     }
-    
+
     if (!templateId) {
       return {
         status: 500,
