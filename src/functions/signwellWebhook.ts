@@ -134,6 +134,8 @@ export async function signwellWebhook(
                   signerName: webhookData.event.related_signer?.name,
                   signerEmail: webhookData.event.related_signer?.email,
                   isExternal: !isApiDocument, // Add flag for external documents
+                  tenantId: document.metadata?.tenant_id,
+                  metadataSource,
                 };
                 
                 // Format date as DD-MM-YYYY

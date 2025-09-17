@@ -142,9 +142,13 @@ export async function createSignWellTemplateSession(
 
     // Generate document name from company name
     const companyNameTab = primarySigner.tabs.textTabs?.find(tab => tab.tabLabel === 'bedrijfsnaam');
-    const documentName = companyNameTab 
-      ? `SLIM Subsidie Aanvraag - ${companyNameTab.value}`
+    const isIgniteTenant = tenant.tenantId === 'ignite';
+    const baseDocumentTitle = isIgniteTenant
+      ? 'SLIM Subsidie Aanvraag Ignite'
       : 'SLIM Subsidie Aanvraag';
+    const documentName = companyNameTab
+      ? `${baseDocumentTitle} - ${companyNameTab.value}`
+      : baseDocumentTitle;
 
     // Initialize SignWell service
     const requestedTestMode = body.test ?? body.testMode;

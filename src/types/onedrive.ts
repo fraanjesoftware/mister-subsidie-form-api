@@ -58,4 +58,6 @@ export interface DocumentMetadata {
   signerName?: string;
   signerEmail?: string;
   isExternal?: boolean;
+  tenantId?: string;
+  metadataSource?: string;
 }

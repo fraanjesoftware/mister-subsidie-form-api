@@ -133,7 +133,9 @@ export class OneDriveService {
     
     // Get folder names from environment variables with fallbacks
     const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
+    const igniteRootFolderName = process.env.ONEDRIVE_IGNITE_FOLDER_NAME || `${apiRootFolderName} Ignite`;
     const externalRootFolderName = process.env.ONEDRIVE_EXTERNAL_FOLDER_NAME || 'SignWell Documenten';
+    const isIgniteTenant = (metadata.tenantId?.toLowerCase() === 'ignite') || (metadata.metadataSource?.toLowerCase() === 'ignite');
     
     // Different folder structure for external documents
     let folderPath: string;
@@ -145,7 +147,8 @@ export class OneDriveService {
       folderPath = `${rootFolder}/${yearFolder}/${companyFolder}`;
     } else {
       // API documents go to: /[APIFolderName] 2025/Company Name - 15-11-2025 14-35
-      const rootFolder = `${apiRootFolderName} ${year}`;
+      const rootFolderBase = isIgniteTenant ? igniteRootFolderName : apiRootFolderName;
+      const rootFolder = `${rootFolderBase} ${year}`;
       const companyFolder = `${sanitizedCompanyName} - ${day}-${month}-${year} ${hours}-${minutes}`;
       folderPath = `${rootFolder}/${companyFolder}`;
     }
