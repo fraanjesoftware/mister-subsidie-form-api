@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import gemachtigdenConfig from '../constants/gemachtigden.json';
+import authorizedRepresentativesConfig from '../constants/authorizedRepresentatives.json';
 
-interface GemachtigdeInfo {
+interface AuthorizedRepresentativeInfo {
   gemachtigde: string;
   gemachtigde_email: string;
   gemachtigde_naam: string;
@@ -9,30 +9,34 @@ interface GemachtigdeInfo {
   gemachtigde_kvk: string;
 }
 
-interface GetGemachtigdeInfoRequest {
+interface GetAuthorizedRepresentativeInfoRequest {
   id?: string;
 }
 
 const DEFAULT_ID = 'mistersubsidie';
-const gemachtigden: Record<string, GemachtigdeInfo> = gemachtigdenConfig;
+const authorizedRepresentatives: Record<string, AuthorizedRepresentativeInfo> = authorizedRepresentativesConfig;
 
-function pickGemachtigde(id?: string): { info: GemachtigdeInfo; selectedId: string; resolvedFromDefault: boolean } {
+function pickAuthorizedRepresentative(id?: string): {
+  info: AuthorizedRepresentativeInfo;
+  selectedId: string;
+  resolvedFromDefault: boolean;
+} {
   const normalizedId = id?.trim().toLowerCase();
 
-  if (normalizedId && gemachtigden[normalizedId]) {
+  if (normalizedId && authorizedRepresentatives[normalizedId]) {
     return {
-      info: gemachtigden[normalizedId],
+      info: authorizedRepresentatives[normalizedId],
       selectedId: normalizedId,
       resolvedFromDefault: false
     };
   }
 
-  const fallback = gemachtigden['default'] || gemachtigden[DEFAULT_ID];
+  const fallback = authorizedRepresentatives['default'] || authorizedRepresentatives[DEFAULT_ID];
 
   if (!fallback) {
-    const firstEntry = Object.entries(gemachtigden)[0];
+    const firstEntry = Object.entries(authorizedRepresentatives)[0];
     if (!firstEntry) {
-      throw new Error('No gemachtigde configuration available');
+      throw new Error('No authorized representative configuration available');
     }
 
     return {
@@ -44,13 +48,16 @@ function pickGemachtigde(id?: string): { info: GemachtigdeInfo; selectedId: stri
 
   return {
     info: fallback,
-    selectedId: fallback === gemachtigden[DEFAULT_ID] ? DEFAULT_ID : 'default',
+    selectedId: fallback === authorizedRepresentatives[DEFAULT_ID] ? DEFAULT_ID : 'default',
     resolvedFromDefault: true
   };
 }
 
-export async function getGemachtigdeInfo(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  context.log('getGemachtigdeInfo function invoked');
+export async function getAuthorizedRepresentativeInfo(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log('getAuthorizedRepresentativeInfo function invoked');
 
   if (request.method === 'OPTIONS') {
     return {
@@ -64,15 +71,15 @@ export async function getGemachtigdeInfo(request: HttpRequest, context: Invocati
   }
 
   try {
-    let body: GetGemachtigdeInfoRequest = {};
+    let body: GetAuthorizedRepresentativeInfoRequest = {};
 
     try {
-      body = await request.json() as GetGemachtigdeInfoRequest;
+      body = await request.json() as GetAuthorizedRepresentativeInfoRequest;
     } catch (parseError: any) {
-      context.log('getGemachtigdeInfo: failed to parse JSON body, falling back to default', parseError?.message);
+      context.log('getAuthorizedRepresentativeInfo: failed to parse JSON body, falling back to default', parseError?.message);
     }
 
-    const { info, selectedId, resolvedFromDefault } = pickGemachtigde(body.id);
+    const { info, selectedId, resolvedFromDefault } = pickAuthorizedRepresentative(body.id);
 
     return {
       status: 200,
@@ -96,7 +103,7 @@ export async function getGemachtigdeInfo(request: HttpRequest, context: Invocati
       })
     };
   } catch (error: any) {
-    context.log('getGemachtigdeInfo error:', error);
+    context.log('getAuthorizedRepresentativeInfo error:', error);
 
     return {
       status: 500,
@@ -114,8 +121,8 @@ export async function getGemachtigdeInfo(request: HttpRequest, context: Invocati
   }
 }
 
-app.http('getGemachtigdeInfo', {
+app.http('getAuthorizedRepresentativeInfo', {
   methods: ['POST', 'OPTIONS'],
   authLevel: 'anonymous',
-  handler: getGemachtigdeInfo
+  handler: getAuthorizedRepresentativeInfo
 });
