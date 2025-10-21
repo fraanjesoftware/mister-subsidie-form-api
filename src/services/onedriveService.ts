@@ -604,20 +604,6 @@ export class OneDriveService {
   }
 
   /**
-   * Update existing file in folder
-   * Replaces file content if it exists, creates if it doesn't
-   */
-  async updateFileInFolder(
-    folderId: string,
-    fileName: string,
-    buffer: Buffer
-  ): Promise<OneDriveUploadResult> {
-    // Same as uploadToFolder - OneDrive API handles replace automatically
-    // with '@microsoft.graph.conflictBehavior': 'replace'
-    return this.uploadToFolder(folderId, buffer, fileName);
-  }
-
-  /**
    * Sanitize file name for OneDrive
    */
   private sanitizeFileName(fileName: string): string {

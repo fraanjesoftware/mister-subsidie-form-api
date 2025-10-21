@@ -82,8 +82,6 @@ export async function submitCompanyInfo(
     const timestamp = formatTimestamp();
     const sanitizedCompany = (companyInfo.bedrijfsnaam || '').replace(ONEDRIVE_CONFIG.SANITIZE_REGEX, '_').trim();
     const companyPrefix = sanitizedCompany ? `${sanitizedCompany} - ` : '';
-    const baseExcelFileName = excelService.getCompanyDataFileName();
-    const excelFileName = `${companyPrefix}${baseExcelFileName}`;
     const archivalFileName = `${companyPrefix}bedrijfsinfo-${timestamp}.xlsx`;
 
     let folderId: string;
@@ -101,9 +99,6 @@ export async function submitCompanyInfo(
       await onedriveService.renameFolder(folderId, companyInfo.applicationId);
       context.log('Folder renamed to:', companyInfo.applicationId);
 
-      // Update Excel file
-      await onedriveService.updateFileInFolder(folderId, excelFileName, excelBuffer);
-      context.log('Excel file updated');
       // Store timestamped copy for history
       await onedriveService.uploadToFolder(folderId, excelBuffer, archivalFileName);
       context.log('Archived Excel file uploaded:', archivalFileName);
@@ -122,7 +117,7 @@ export async function submitCompanyInfo(
         folderPath: folderResult.folderPath
       });
 
-      // Upload timestamped Excel file and set as latest version
+      // Upload timestamped Excel file for initial submission
       await onedriveService.uploadToFolder(folderId, excelBuffer, archivalFileName);
       context.log('Archived Excel file uploaded:', archivalFileName);
     }
@@ -134,7 +129,7 @@ export async function submitCompanyInfo(
       applicationId: companyInfo.applicationId,
       tenantId: companyInfo.tenantId,
       folderId,
-      storedFileName: excelFileName,
+      storedFileName: archivalFileName,
       archiveFileName: archivalFileName
     };
 

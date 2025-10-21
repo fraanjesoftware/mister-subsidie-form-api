@@ -97,12 +97,4 @@ export class ExcelService {
 
     return excelBuffer;
   }
-
-  /**
-   * Generate filename for company data Excel file
-   * Format: bedrijfsinfo.xlsx (consistent naming)
-   */
-  getCompanyDataFileName(): string {
-    return 'Bedrijfsinfo.xlsx';
-  }
 }
