@@ -4,7 +4,7 @@ import { PDFDocument } from 'pdf-lib';
 import { SignWellWebhookEvent } from '../types/signwell';
 import { SignWellService } from '../services/signwellService';
 import { OneDriveService } from '../services/onedriveService';
-import { DocumentMetadata } from '../types/onedrive';
+import { DocumentMetadata, OneDriveUploadResult } from '../types/onedrive';
 import { getKnownMetadataSources } from '../utils/tenantConfig';
 
 const TENANT_METADATA_SOURCES = getKnownMetadataSources();
@@ -111,7 +111,12 @@ export async function signwellWebhook(
                 const isApiDocument = metadataSource ? TENANT_METADATA_SOURCES.has(metadataSource) : false;
 
                 // Extract folderId from metadata (new application-based flow)
-                const folderId = document.metadata?.folder_id;
+                const rawFolderId = typeof document.metadata?.folder_id === 'string'
+                  ? document.metadata.folder_id.trim()
+                  : undefined;
+                const folderId = rawFolderId && rawFolderId.toLowerCase() !== 'null' && rawFolderId.toLowerCase() !== 'undefined'
+                  ? rawFolderId
+                  : undefined;
                 const applicationId = document.metadata?.application_id;
 
                 // Extract company name with fallback strategies
@@ -202,21 +207,31 @@ export async function signwellWebhook(
                 }
 
                 // Upload documents using appropriate strategy
-                let uploadResults;
+                let uploadResults: OneDriveUploadResult[] = [];
+                let resolvedFolderId = folderId;
 
-                if (folderId) {
-                  // NEW FLOW: Upload directly to existing application folder
-                  context.log('Using application-based upload with folderId:', folderId);
+                if (resolvedFolderId) {
+                  try {
+                    await onedriveService.verifyApplicationFolderAccess(resolvedFolderId);
+                    context.log('Using application-based upload with folderId:', resolvedFolderId);
 
-                  uploadResults = await Promise.all(
-                    documentsToUpload.map(doc =>
-                      onedriveService.uploadToFolder(folderId, doc.buffer, doc.fileName)
-                    )
-                  );
+                    uploadResults = await Promise.all(
+                      documentsToUpload.map(doc =>
+                        onedriveService.uploadToFolder(resolvedFolderId as string, doc.buffer, doc.fileName)
+                      )
+                    );
 
-                  context.log('Documents uploaded to application folder');
+                    context.log('Documents uploaded to application folder');
+                  } catch (verificationError) {
+                    context.warn('Provided folderId failed verification, falling back to legacy structure', {
+                      folderId: resolvedFolderId,
+                      error: verificationError instanceof Error ? verificationError.message : verificationError
+                    });
+                    resolvedFolderId = undefined;
+                  }
+                }
 
-                } else {
+                if (!resolvedFolderId) {
                   // FALLBACK: Use date-based folder creation (backward compatibility)
                   context.log('No folderId found, using date-based folder creation (legacy flow)');
 
@@ -230,8 +245,8 @@ export async function signwellWebhook(
 
                 context.log('OneDrive upload completed:', {
                   filesUploaded: uploadResults.length,
-                  uploadMethod: folderId ? 'application-based' : 'date-based',
-                  folderId: folderId || 'N/A',
+                  uploadMethod: resolvedFolderId ? 'application-based' : 'date-based',
+                  folderId: resolvedFolderId || 'N/A',
                   applicationId: applicationId || 'N/A',
                   files: uploadResults.map(r => ({
                     name: r.name,
