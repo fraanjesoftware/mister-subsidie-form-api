@@ -60,4 +60,6 @@ export interface DocumentMetadata {
   isExternal?: boolean;
   tenantId?: string;
   metadataSource?: string;
+  applicationId?: string; // Application ID for folder lookup
+  folderId?: string; // OneDrive folder ID for direct access
 }

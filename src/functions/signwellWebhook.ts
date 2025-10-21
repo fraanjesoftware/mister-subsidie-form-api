@@ -110,9 +110,13 @@ export async function signwellWebhook(
                 // Check if this document was created through our API
                 const isApiDocument = metadataSource ? TENANT_METADATA_SOURCES.has(metadataSource) : false;
 
+                // Extract folderId from metadata (new application-based flow)
+                const folderId = document.metadata?.folder_id;
+                const applicationId = document.metadata?.application_id;
+
                 // Extract company name with fallback strategies
                 let companyName = document.metadata?.company_name;
-                
+
                 if (!companyName && !isApiDocument) {
                   // For external documents, try to extract from document name
                   // Pattern: "20251079 E.F. interieurafbouw raamovereenkomst" -> "E.F. interieurafbouw"
@@ -124,7 +128,7 @@ export async function signwellWebhook(
                     companyName = document.name.replace(/^\d+\s+/, '').replace(/\.(pdf|docx?)$/i, '').trim();
                   }
                 }
-                
+
                 // Extract metadata from document
                 const metadata: DocumentMetadata = {
                   companyName: companyName || 'Onbekend Bedrijf',
@@ -136,15 +140,17 @@ export async function signwellWebhook(
                   isExternal: !isApiDocument, // Add flag for external documents
                   tenantId: document.metadata?.tenant_id,
                   metadataSource,
+                  applicationId, // Add applicationId for tracking
+                  folderId, // Add folderId for direct upload
                 };
                 
                 // Format date as DD-MM-YYYY
                 const date = new Date(metadata.signedAt);
                 const formattedDate = `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-                
+
                 // Prepare documents for upload
                 const documentsToUpload: { buffer: Buffer; fileName: string }[] = [];
-                
+
                 // Add full document with different naming based on source
                 if (metadata.isExternal) {
                   // For external documents, use original document name with date
@@ -159,7 +165,7 @@ export async function signwellWebhook(
                     fileName: `SLIM Aanvraag ${metadata.companyName} ${formattedDate}.pdf`
                   });
                 }
-                
+
                 // Add individual pages with specific names
                 if (!metadata.isExternal) {
                   // For API documents, use standard page naming (updated for new structure)
@@ -169,7 +175,7 @@ export async function signwellWebhook(
                     'MKB Verklaring SLIM',
                     'Overeenkomst Dienstverlening'
                   ];
-                  
+
                   splitPdfs.originalFiles.forEach((file, index) => {
                     const pageName = pageNames[index] || `Document ${index + 1}`;
                     documentsToUpload.push({
@@ -186,7 +192,7 @@ export async function signwellWebhook(
                     });
                   });
                 }
-                
+
                 // Add audit trail if exists
                 if (splitPdfs.auditTrail) {
                   documentsToUpload.push({
@@ -194,15 +200,39 @@ export async function signwellWebhook(
                     fileName: `Audit Trail ${metadata.companyName} ${formattedDate}.pdf`
                   });
                 }
-                
-                // Upload all documents
-                const uploadResults = await onedriveService.uploadSignedDocuments(
-                  documentsToUpload,
-                  metadata
-                );
-                
+
+                // Upload documents using appropriate strategy
+                let uploadResults;
+
+                if (folderId) {
+                  // NEW FLOW: Upload directly to existing application folder
+                  context.log('Using application-based upload with folderId:', folderId);
+
+                  uploadResults = await Promise.all(
+                    documentsToUpload.map(doc =>
+                      onedriveService.uploadToFolder(folderId, doc.buffer, doc.fileName)
+                    )
+                  );
+
+                  context.log('Documents uploaded to application folder');
+
+                } else {
+                  // FALLBACK: Use date-based folder creation (backward compatibility)
+                  context.log('No folderId found, using date-based folder creation (legacy flow)');
+
+                  uploadResults = await onedriveService.uploadSignedDocuments(
+                    documentsToUpload,
+                    metadata
+                  );
+
+                  context.log('Documents uploaded using legacy date-based structure');
+                }
+
                 context.log('OneDrive upload completed:', {
                   filesUploaded: uploadResults.length,
+                  uploadMethod: folderId ? 'application-based' : 'date-based',
+                  folderId: folderId || 'N/A',
+                  applicationId: applicationId || 'N/A',
                   files: uploadResults.map(r => ({
                     name: r.name,
                     size: r.size,

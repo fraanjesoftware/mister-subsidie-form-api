@@ -354,6 +354,93 @@ export class OneDriveService {
   }
 
   /**
+   * Create application-based folder at tenant root
+   * Used for new application-based file organization
+   */
+  async createApplicationFolder(
+    applicationId: string,
+    tenantId: string
+  ): Promise<{ folderId: string; folderPath: string }> {
+    await this.authenticate();
+
+    // Determine root folder based on tenant
+    const isIgniteTenant = tenantId?.toLowerCase() === 'ignite';
+    const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
+    const igniteRootFolderName = process.env.ONEDRIVE_IGNITE_FOLDER_NAME || `${apiRootFolderName} Ignite`;
+    const rootFolderName = isIgniteTenant ? igniteRootFolderName : apiRootFolderName;
+
+    // Application folders go directly in root: /SLIM Subsidies/CompanyName-DD-MM-YYYY/
+    const folderPath = `${rootFolderName}/${applicationId}`;
+
+    try {
+      // Create folder structure recursively
+      const folderId = await this.createFolderRecursive(folderPath);
+
+      return {
+        folderId,
+        folderPath
+      };
+    } catch (error) {
+      throw new Error(`Failed to create application folder: ${this.formatError(error)}`);
+    }
+  }
+
+  /**
+   * Rename folder by ID
+   * Used when user changes company name after initial submission
+   */
+  async renameFolder(folderId: string, newName: string): Promise<void> {
+    await this.authenticate();
+
+    try {
+      const basePath = this.getBasePath();
+      await this.graphClient.patch(
+        `${basePath}/items/${folderId}`,
+        {
+          name: newName
+        }
+      );
+    } catch (error) {
+      throw new Error(`Failed to rename folder: ${this.formatError(error)}`);
+    }
+  }
+
+  /**
+   * Upload file directly to folder by ID
+   * More efficient than path-based upload when folderId is known
+   */
+  async uploadToFolder(
+    folderId: string,
+    buffer: Buffer,
+    fileName: string
+  ): Promise<OneDriveUploadResult> {
+    await this.authenticate();
+
+    const sanitizedFileName = this.sanitizeFileName(fileName);
+
+    // Use simple upload for files < 4MB, otherwise use upload session
+    if (buffer.length < ONEDRIVE_CONFIG.MAX_FILE_SIZE) {
+      return this.simpleUpload(buffer, sanitizedFileName, folderId);
+    } else {
+      return this.largeFileUpload(buffer, sanitizedFileName, folderId);
+    }
+  }
+
+  /**
+   * Update existing file in folder
+   * Replaces file content if it exists, creates if it doesn't
+   */
+  async updateFileInFolder(
+    folderId: string,
+    fileName: string,
+    buffer: Buffer
+  ): Promise<OneDriveUploadResult> {
+    // Same as uploadToFolder - OneDrive API handles replace automatically
+    // with '@microsoft.graph.conflictBehavior': 'replace'
+    return this.uploadToFolder(folderId, buffer, fileName);
+  }
+
+  /**
    * Sanitize file name for OneDrive
    */
   private sanitizeFileName(fileName: string): string {
