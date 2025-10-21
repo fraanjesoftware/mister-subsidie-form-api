@@ -8,6 +8,8 @@ import './functions/createSignWellTemplateSession';
 import './functions/signwellWebhook';
 import './functions/health';
 import './functions/getAuthorizedRepresentativeInfo';
+import './functions/uploadBankStatement';
+import './functions/submitCompanyInfo';
 
 // You can add more function imports here as you create them
 // import './functions/anotherFunction';
