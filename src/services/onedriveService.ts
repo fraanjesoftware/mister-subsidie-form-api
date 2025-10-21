@@ -402,9 +402,11 @@ export class OneDriveService {
     const isIgniteTenant = tenantId?.toLowerCase() === 'ignite';
     const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
     const igniteRootFolderName = process.env.ONEDRIVE_IGNITE_FOLDER_NAME || `${apiRootFolderName} Ignite`;
-    const rootFolderName = isIgniteTenant ? igniteRootFolderName : apiRootFolderName;
+    const rootFolderBase = isIgniteTenant ? igniteRootFolderName : apiRootFolderName;
+    const currentYear = new Date().getFullYear();
+    const rootFolderName = `${rootFolderBase} ${currentYear}`.trim();
 
-    // Application folders go directly in root: /SLIM Subsidies/CompanyName-DD-MM-YYYY/
+    // Application folders go directly in yearly root: /SLIM Subsidies 2025/CompanyName-DD-MM-YYYY/
     const sanitizedApplicationId = this.sanitizeFileName(applicationId);
     const folderPath = `${rootFolderName}/${sanitizedApplicationId}`;
 
