@@ -98,9 +98,9 @@ export class ExcelService {
 
   /**
    * Generate filename for company data Excel file
-   * Format: company-data.xlsx (consistent naming)
+   * Format: bedrijfsinfo.xlsx (consistent naming)
    */
   getCompanyDataFileName(): string {
-    return 'company-data.xlsx';
+    return 'bedrijfsinfo.xlsx';
   }
 }

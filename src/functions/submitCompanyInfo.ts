@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { CompanyInfo, SubmitCompanyInfoResponse } from '../types/application';
 import { OneDriveService } from '../services/onedriveService';
 import { ExcelService } from '../services/excelService';
+import { formatTimestamp } from '../utils/time';
 
 /**
  * Azure Function: Submit Company Info
@@ -78,6 +79,8 @@ export async function submitCompanyInfo(
     // Generate Excel file
     const excelBuffer = excelService.generateCompanyDataExcel(companyInfo);
     const excelFileName = excelService.getCompanyDataFileName();
+    const timestamp = formatTimestamp();
+    const archivalFileName = `bedrijfsinfo-${timestamp}.xlsx`;
 
     let folderId: string;
     let isUpdate = false;
@@ -97,7 +100,9 @@ export async function submitCompanyInfo(
       // Update Excel file
       await onedriveService.updateFileInFolder(folderId, excelFileName, excelBuffer);
       context.log('Excel file updated');
-
+      // Store timestamped copy for history
+      await onedriveService.uploadToFolder(folderId, excelBuffer, archivalFileName);
+      context.log('Archived Excel file uploaded:', archivalFileName);
     } else {
       // CREATE SCENARIO: New folder + Excel file
       context.log('Creating new application folder');
@@ -116,6 +121,27 @@ export async function submitCompanyInfo(
       // Upload Excel file
       await onedriveService.uploadToFolder(folderId, excelBuffer, excelFileName);
       context.log('Excel file uploaded');
+      // Store timestamped copy for history
+      await onedriveService.uploadToFolder(folderId, excelBuffer, archivalFileName);
+      context.log('Archived Excel file uploaded:', archivalFileName);
+    }
+
+    // Write audit entry
+    const auditEntry = {
+      action: isUpdate ? 'updateCompanyInfo' : 'createCompanyInfo',
+      processedAt: new Date().toISOString(),
+      applicationId: companyInfo.applicationId,
+      tenantId: companyInfo.tenantId,
+      folderId,
+      storedFileName: excelFileName,
+      archiveFileName: archivalFileName
+    };
+
+    try {
+      await onedriveService.recordAuditEntry(folderId, 'bedrijfsinfo', auditEntry, timestamp);
+    } catch (auditError) {
+      const logMethod = typeof context.warn === 'function' ? context.warn : context.log;
+      logMethod.call(context, 'Failed to write audit entry for company info submission', auditError);
     }
 
     // Return success response with folderId

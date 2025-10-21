@@ -10,6 +10,7 @@ import {
   OneDriveDriveItem
 } from '../types/onedrive';
 import { ONEDRIVE_CONFIG } from '../constants/onedrive';
+import { formatTimestamp } from '../utils/time';
 
 export class OneDriveService {
   private config: OneDriveConfig;
@@ -253,6 +254,10 @@ export class OneDriveService {
 
     if (lowerName.endsWith('.csv')) {
       return 'text/csv';
+    }
+
+    if (lowerName.endsWith('.json')) {
+      return 'application/json';
     }
 
     return 'application/octet-stream';
@@ -506,6 +511,27 @@ export class OneDriveService {
     const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
     const igniteRootFolderName = process.env.ONEDRIVE_IGNITE_FOLDER_NAME || `${apiRootFolderName} Ignite`;
     return [apiRootFolderName, igniteRootFolderName];
+  }
+
+  /**
+   * Write a JSON audit entry to the specified folder
+   */
+  async recordAuditEntry(
+    folderId: string,
+    fileStem: string,
+    payload: Record<string, any>,
+    timestamp?: string
+  ): Promise<void> {
+    const entryTimestamp = timestamp ?? formatTimestamp(new Date());
+    const auditPayload = {
+      auditType: fileStem,
+      recordedAt: new Date().toISOString(),
+      ...payload
+    };
+
+    const buffer = Buffer.from(JSON.stringify(auditPayload, null, 2), 'utf-8');
+    const fileName = `${fileStem}-log-${entryTimestamp}.json`;
+    await this.uploadToFolder(folderId, buffer, fileName);
   }
 
   /**

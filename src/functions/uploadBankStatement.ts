@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { UploadBankStatementResponse } from '../types/application';
 import { OneDriveService } from '../services/onedriveService';
+import { formatTimestamp } from '../utils/time';
 
 /**
  * Azure Function: Upload Bank Statement
@@ -136,11 +137,12 @@ export async function uploadBankStatement(
     }
 
     // Upload directly to the folder using folderId
-    const fileName = 'bank-statement.pdf'; // Consistent naming
+    const timestamp = formatTimestamp();
+    const storedFileName = `bankafschrift-${timestamp}.pdf`; // Append timestamp to retain history
     const uploadResult = await onedriveService.uploadToFolder(
       folderId,
       fileBuffer,
-      fileName
+      storedFileName
     );
 
     context.log('Bank statement uploaded successfully:', {
@@ -148,6 +150,26 @@ export async function uploadBankStatement(
       fileName: uploadResult.name,
       webUrl: uploadResult.webUrl
     });
+
+    // Write audit entry alongside the upload
+    const auditEntry = {
+      action: 'uploadBankStatement',
+      uploadedAt: new Date().toISOString(),
+      applicationId,
+      folderId,
+      originalFileName: file.name,
+      storedFileName,
+      fileSize: file.size,
+      kvkNummer,
+      bedrijfsnaam
+    };
+
+    try {
+      await onedriveService.recordAuditEntry(folderId, 'bankafschrift', auditEntry, timestamp);
+    } catch (auditError) {
+      const logMethod = typeof context.warn === 'function' ? context.warn : context.log;
+      logMethod.call(context, 'Failed to write audit entry for bank statement upload', auditError);
+    }
 
     // Return success response
     const response: UploadBankStatementResponse = {
