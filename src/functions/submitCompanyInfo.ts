@@ -122,10 +122,7 @@ export async function submitCompanyInfo(
         folderPath: folderResult.folderPath
       });
 
-      // Upload Excel file
-      await onedriveService.uploadToFolder(folderId, excelBuffer, excelFileName);
-      context.log('Excel file uploaded');
-      // Store timestamped copy for history
+      // Upload timestamped Excel file and set as latest version
       await onedriveService.uploadToFolder(folderId, excelBuffer, archivalFileName);
       context.log('Archived Excel file uploaded:', archivalFileName);
     }
