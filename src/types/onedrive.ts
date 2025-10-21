@@ -53,6 +53,11 @@ export interface OneDriveUploadSession {
 export interface OneDriveDriveItem {
   id: string;
   name: string;
+  size?: number;
+  webUrl?: string;
+  createdDateTime?: string;
+  lastModifiedDateTime?: string;
+  '@microsoft.graph.downloadUrl'?: string;
   folder?: {
     childCount: number;
   };
@@ -62,6 +67,10 @@ export interface OneDriveDriveItem {
     id?: string;
     path?: string;
   };
+}
+
+export interface OneDriveChildrenResponse {
+  value: OneDriveDriveItem[];
 }
 
 export interface DocumentMetadata {

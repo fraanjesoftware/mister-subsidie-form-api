@@ -7,7 +7,8 @@ import {
   OneDriveError,
   OneDriveUploadSession,
   DocumentMetadata,
-  OneDriveDriveItem
+  OneDriveDriveItem,
+  OneDriveChildrenResponse
 } from '../types/onedrive';
 import { ONEDRIVE_CONFIG } from '../constants/onedrive';
 import { formatTimestamp } from '../utils/time';
@@ -211,6 +212,44 @@ export class OneDriveService {
     } catch (error) {
       throw new Error(`Failed to create folder: ${this.formatError(error)}`);
     }
+  }
+
+  /**
+   * Ensure a named child folder exists beneath the specified parent folder ID
+   */
+  private async ensureChildFolder(parentId: string, folderName: string): Promise<string> {
+    await this.authenticate();
+
+    const basePath = this.getBasePath();
+    const sanitizedName = this.sanitizeFileName(folderName);
+    const targetNameLower = sanitizedName.toLowerCase();
+
+    try {
+      const response = await this.graphClient.get<OneDriveChildrenResponse>(
+        `${basePath}/items/${parentId}/children`,
+        {
+          params: {
+            '$select': 'id,name,folder',
+            '$filter': `folder ne null and name eq '${sanitizedName.replace(/'/g, "''")}'`
+          }
+        }
+      );
+
+      const match = response.data.value.find(
+        item => item.folder && item.name.toLowerCase() === targetNameLower
+      );
+
+      if (match?.id) {
+        return match.id;
+      }
+    } catch (error: any) {
+      if (error?.response?.status && error.response.status !== 404) {
+        throw new Error(`Failed to lookup child folder "${folderName}": ${this.formatError(error)}`);
+      }
+    }
+
+    const createdFolder = await this.createFolder(sanitizedName, parentId);
+    return createdFolder.id;
   }
 
   /**
@@ -533,7 +572,8 @@ export class OneDriveService {
 
     const buffer = Buffer.from(JSON.stringify(auditPayload, null, 2), 'utf-8');
     const fileName = `${fileStem}-log-${entryTimestamp}.json`;
-    await this.uploadToFolder(folderId, buffer, fileName);
+    const logsFolderId = await this.ensureChildFolder(folderId, 'logs');
+    await this.uploadToFolder(logsFolderId, buffer, fileName);
   }
 
   /**
