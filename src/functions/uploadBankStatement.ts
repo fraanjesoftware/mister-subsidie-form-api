@@ -138,7 +138,11 @@ export async function uploadBankStatement(
 
     // Upload directly to the folder using folderId
     const timestamp = formatTimestamp();
-    const storedFileName = `bankafschrift-${timestamp}.pdf`; // Append timestamp to retain history
+    const sanitizedCompany = onedriveService['sanitizeFileName']
+      ? (onedriveService as any).sanitizeFileName(bedrijfsnaam)
+      : bedrijfsnaam.replace(/[<>:"/\\|?*]/g, '_');
+    const companyPrefix = sanitizedCompany ? `${sanitizedCompany} - ` : '';
+    const storedFileName = `${companyPrefix}bankafschrift-${timestamp}.pdf`; // Append timestamp to retain history
     const uploadResult = await onedriveService.uploadToFolder(
       folderId,
       fileBuffer,

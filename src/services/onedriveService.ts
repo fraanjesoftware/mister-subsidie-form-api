@@ -258,18 +258,23 @@ export class OneDriveService {
   async uploadFile(
     buffer: Buffer, 
     fileName: string, 
-    folderId: string
+    folderId: string,
+    companyName?: string
   ): Promise<OneDriveUploadResult> {
     await this.authenticate();
 
     const sanitizedFileName = this.sanitizeFileName(fileName);
+    const sanitizedCompany = companyName ? this.sanitizeFileName(companyName) : '';
+    const prefixedFileName = sanitizedCompany
+      ? `${sanitizedCompany} - ${sanitizedFileName}`
+      : sanitizedFileName;
     const contentType = this.getContentType(fileName);
     
     // Use simple upload for files < 4MB, otherwise use upload session
     if (buffer.length < ONEDRIVE_CONFIG.MAX_FILE_SIZE) {
-      return this.simpleUpload(buffer, sanitizedFileName, folderId, contentType);
+      return this.simpleUpload(buffer, prefixedFileName, folderId, contentType);
     } else {
-      return this.largeFileUpload(buffer, sanitizedFileName, folderId, contentType);
+      return this.largeFileUpload(buffer, prefixedFileName, folderId, contentType);
     }
   }
 
@@ -396,7 +401,7 @@ export class OneDriveService {
       
       // Upload all documents in parallel
       const uploadPromises = documents.map(doc => 
-        this.uploadFileWithRetry(doc.buffer, doc.fileName, folderId)
+        this.uploadFileWithRetry(doc.buffer, doc.fileName, folderId, 1, metadata.companyName)
       );
       
       const results = await Promise.all(uploadPromises);
@@ -413,15 +418,16 @@ export class OneDriveService {
     buffer: Buffer,
     fileName: string,
     folderId: string,
-    attempt = 1
+    attempt = 1,
+    companyName?: string
   ): Promise<OneDriveUploadResult> {
     try {
-      return await this.uploadFile(buffer, fileName, folderId);
+      return await this.uploadFile(buffer, fileName, folderId, companyName);
     } catch (error) {
       if (attempt < ONEDRIVE_CONFIG.MAX_RETRIES) {
         const delay = ONEDRIVE_CONFIG.RETRY_DELAY * Math.pow(ONEDRIVE_CONFIG.RETRY_MULTIPLIER, attempt - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.uploadFileWithRetry(buffer, fileName, folderId, attempt + 1);
+        return this.uploadFileWithRetry(buffer, fileName, folderId, attempt + 1, companyName);
       }
       throw error;
     }

@@ -16,51 +16,53 @@ export class ExcelService {
 
     // Prepare data in database-ready format (columns = fields, rows = entries)
     // This allows easy import into CRM/DB and accumulation of multiple applications
-    const rows = [
-      // Header row - these will become database field names
-      [
-        'Applicatie ID',
-        'Tenant ID',
-        'Datum',
-        'Bedrijfsnaam',
-        'KvK-nummer',
-        'BTW-identificatienummer',
-        'Website',
-        'Adres',
-        'Postcode',
-        'Plaats',
-        'Provincie',
-        'NACE-classificatie',
-        'Contactpersoon',
-        'Telefoonnummer',
-        'Email',
-        'Geslacht',
-        'Vertegenwoordiger'
-      ],
-      // Data row - this application's values
-      [
-        data.applicationId,
-        data.tenantId,
-        data.datum,
-        data.bedrijfsnaam,
-        data.kvkNummer,
-        data.btwId,
-        data.website,
-        data.adres,
-        data.postcode,
-        data.plaats,
-        data.provincie,
-        data.naceClassificatie,
-        data.contactNaam,
-        data.contactTelefoon,
-        data.contactEmail,
-        data.contactGeslacht,
-        data.hoofdcontactPersoon
-      ]
+    const columns: Array<{ key: keyof CompanyInfo; label: string }> = [
+      { key: 'applicationId', label: 'Applicatie ID' },
+      { key: 'tenantId', label: 'Tenant ID' },
+      { key: 'datum', label: 'Datum' },
+      { key: 'bedrijfsnaam', label: 'Bedrijfsnaam' },
+      { key: 'kvkNummer', label: 'KvK-nummer' },
+      { key: 'btwId', label: 'BTW-identificatienummer' },
+      { key: 'website', label: 'Website' },
+      { key: 'adres', label: 'Adres' },
+      { key: 'postcode', label: 'Postcode' },
+      { key: 'plaats', label: 'Plaats' },
+      { key: 'provincie', label: 'Provincie' },
+      { key: 'naceClassificatie', label: 'NACE-classificatie' },
+      { key: 'contactNaam', label: 'Contactpersoon' },
+      { key: 'contactTelefoon', label: 'Telefoonnummer' },
+      { key: 'contactEmail', label: 'Email' },
+      { key: 'contactGeslacht', label: 'Geslacht' },
+      { key: 'hoofdcontactPersoon', label: 'Vertegenwoordiger' }
     ];
 
-    // Create worksheet from array
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const headerLabels = columns.map(column => column.label);
+    const dataRow = columns.reduce<Record<string, string | number | undefined>>((row, column) => {
+      row[column.label] = data[column.key] ?? '';
+      return row;
+    }, {});
+
+    const worksheet = XLSX.utils.json_to_sheet([dataRow], {
+      header: headerLabels
+    });
+
+    // Mark header row explicitly so Excel recognises it
+    worksheet['!ref'] = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: 1, c: headerLabels.length - 1 }
+    });
+    worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+
+    headerLabels.forEach((_, columnIndex) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: columnIndex });
+      const cell = worksheet[cellRef];
+
+      if (cell) {
+        cell.s = {
+          font: { bold: true }
+        };
+      }
+    });
 
     // Set column widths for better readability
     const columnWidths = [
@@ -100,7 +102,17 @@ export class ExcelService {
    * Generate filename for company data Excel file
    * Format: bedrijfsinfo.xlsx (consistent naming)
    */
-  getCompanyDataFileName(): string {
-    return 'bedrijfsinfo.xlsx';
+  getCompanyDataFileName(companyName?: string): string {
+    const baseName = 'Bedrijfsinfo.xlsx';
+    if (!companyName) {
+      return baseName;
+    }
+
+    const sanitizedCompany = companyName.replace(/[<>:"/\\|?*]/g, '_').trim();
+    if (!sanitizedCompany) {
+      return baseName;
+    }
+
+    return `${sanitizedCompany} - ${baseName}`;
   }
 }
