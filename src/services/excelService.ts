@@ -14,42 +14,75 @@ export class ExcelService {
     // Create workbook and worksheet
     const workbook = XLSX.utils.book_new();
 
-    // Prepare data in key-value format for easy reading
+    // Prepare data in database-ready format (columns = fields, rows = entries)
+    // This allows easy import into CRM/DB and accumulation of multiple applications
     const rows = [
-      ['Field', 'Value'],
-      ['', ''], // Spacer
-      ['Metadata', ''],
-      ['Applicatie ID', data.applicationId],
-      ['Tenant ID', data.tenantId],
-      ['Datum', data.datum],
-      ['', ''], // Spacer
-      ['Bedrijfsinfo', ''],
-      ['Bedrijfsnaam', data.bedrijfsnaam],
-      ['KvK-nummer', data.kvkNummer],
-      ['BTW-identificatienummer', data.btwId],
-      ['Website', data.website],
-      ['Adres', data.adres],
-      ['Postcode', data.postcode],
-      ['Plaats', data.plaats],
-      ['Provincie', data.provincie],
-      ['NACE-classificatie', data.naceClassificatie],
-      ['', ''], // Spacer
-      ['Contactpersoon', ''],
-      ['Naam', data.contactNaam],
-      ['Telefoonnummer', data.contactTelefoon],
-      ['Email', data.contactEmail],
-      ['Geslacht', data.contactGeslacht],
-      ['Vertegenwoordiger', data.hoofdcontactPersoon]
+      // Header row - these will become database field names
+      [
+        'Applicatie ID',
+        'Tenant ID',
+        'Datum',
+        'Bedrijfsnaam',
+        'KvK-nummer',
+        'BTW-identificatienummer',
+        'Website',
+        'Adres',
+        'Postcode',
+        'Plaats',
+        'Provincie',
+        'NACE-classificatie',
+        'Contactpersoon',
+        'Telefoonnummer',
+        'Email',
+        'Geslacht',
+        'Vertegenwoordiger'
+      ],
+      // Data row - this application's values
+      [
+        data.applicationId,
+        data.tenantId,
+        data.datum,
+        data.bedrijfsnaam,
+        data.kvkNummer,
+        data.btwId,
+        data.website,
+        data.adres,
+        data.postcode,
+        data.plaats,
+        data.provincie,
+        data.naceClassificatie,
+        data.contactNaam,
+        data.contactTelefoon,
+        data.contactEmail,
+        data.contactGeslacht,
+        data.hoofdcontactPersoon
+      ]
     ];
 
     // Create worksheet from array
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
 
     // Set column widths for better readability
-    worksheet['!cols'] = [
-      { wch: 30 }, // Field name column
-      { wch: 50 }  // Value column
+    const columnWidths = [
+      { wch: 20 }, // Applicatie ID
+      { wch: 15 }, // Tenant ID
+      { wch: 12 }, // Datum
+      { wch: 25 }, // Bedrijfsnaam
+      { wch: 12 }, // KvK-nummer
+      { wch: 18 }, // BTW-identificatienummer
+      { wch: 30 }, // Website
+      { wch: 30 }, // Adres
+      { wch: 10 }, // Postcode
+      { wch: 20 }, // Plaats
+      { wch: 20 }, // Provincie
+      { wch: 18 }, // NACE-classificatie
+      { wch: 25 }, // Contactpersoon
+      { wch: 15 }, // Telefoonnummer
+      { wch: 30 }, // Email
+      { wch: 10 }, // Geslacht
+      { wch: 15 }  // Vertegenwoordiger
     ];
+    worksheet['!cols'] = columnWidths;
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Company Data');
