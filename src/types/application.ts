@@ -50,6 +50,7 @@ export interface ApplicationFolderMetadata {
 export interface SubmitCompanyInfoResponse {
   success: boolean;
   folderId: string;
+  applicationId?: string;
   message?: string;
 }
 

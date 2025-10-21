@@ -116,6 +116,25 @@ export async function uploadBankStatement(
     // Initialize OneDrive service
     const onedriveService = new OneDriveService();
 
+    try {
+      await onedriveService.verifyApplicationFolderAccess(folderId, applicationId);
+    } catch (validationError) {
+      context.log('Folder verification failed for bank statement upload', {
+        folderId,
+        applicationId,
+        error: validationError instanceof Error ? validationError.message : validationError
+      });
+
+      return {
+        status: 403,
+        body: JSON.stringify({
+          success: false,
+          message: 'Folder validation failed for supplied applicationId'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      };
+    }
+
     // Upload directly to the folder using folderId
     const fileName = 'bank-statement.pdf'; // Consistent naming
     const uploadResult = await onedriveService.uploadToFolder(

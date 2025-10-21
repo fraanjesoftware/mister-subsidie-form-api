@@ -19,6 +19,8 @@ interface CreateTemplateSigningSessionRequest {
   testMode?: boolean; // Optional: override test mode
   test?: boolean; // Optional: frontend toggle for SignWell test mode
   tenantId?: string; // Optional: tenant identifier for multi-tenant setup
+  applicationId?: string; // Optional: application identifier for folder linking
+  folderId?: string | null; // Optional: OneDrive folder identifier for reuse
 }
 
 /**
@@ -188,6 +190,22 @@ export async function createSignWellTemplateSession(
     }
 
     // Prepare the SignWell request
+    const metadata: Record<string, any> = {
+      company_name: companyNameTab?.value || '',
+      kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
+      submission_date: new Date().toISOString(),
+      source: metadataSource,
+      tenant_id: tenant.tenantId
+    };
+
+    if (body.applicationId) {
+      metadata.application_id = body.applicationId;
+    }
+
+    if (body.folderId) {
+      metadata.folder_id = body.folderId;
+    }
+
     const documentRequest: CreateDocumentRequest = {
       name: documentName,
       subject: 'SLIM Subsidie - Ondertekeningsverzoek',
@@ -196,13 +214,7 @@ export async function createSignWellTemplateSession(
       template_fields: templateFields,      
       embedded_signing: false,
       redirect_uri: body.returnUrl,
-      metadata: {
-        company_name: companyNameTab?.value || '',
-        kvk_number: primarySigner.tabs.textTabs?.find(t => t.tabLabel === 'kvk')?.value || '',
-        submission_date: new Date().toISOString(),
-        source: metadataSource,
-        tenant_id: tenant.tenantId
-      },
+      metadata,
       test_mode: useTestMode,
       draft: false,
       send_email: true, // Always send emails unless explicitly disabled

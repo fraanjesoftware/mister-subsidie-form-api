@@ -6,7 +6,8 @@ import {
   OneDriveFolderResult,
   OneDriveError,
   OneDriveUploadSession,
-  DocumentMetadata
+  DocumentMetadata,
+  OneDriveDriveItem
 } from '../types/onedrive';
 import { ONEDRIVE_CONFIG } from '../constants/onedrive';
 
@@ -222,13 +223,39 @@ export class OneDriveService {
     await this.authenticate();
 
     const sanitizedFileName = this.sanitizeFileName(fileName);
+    const contentType = this.getContentType(fileName);
     
     // Use simple upload for files < 4MB, otherwise use upload session
     if (buffer.length < ONEDRIVE_CONFIG.MAX_FILE_SIZE) {
-      return this.simpleUpload(buffer, sanitizedFileName, folderId);
+      return this.simpleUpload(buffer, sanitizedFileName, folderId, contentType);
     } else {
-      return this.largeFileUpload(buffer, sanitizedFileName, folderId);
+      return this.largeFileUpload(buffer, sanitizedFileName, folderId, contentType);
     }
+  }
+
+  /**
+   * Determine MIME type based on file extension
+   */
+  private getContentType(fileName: string): string {
+    const lowerName = fileName.toLowerCase();
+
+    if (lowerName.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+
+    if (lowerName.endsWith('.xlsx')) {
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+
+    if (lowerName.endsWith('.xls')) {
+      return 'application/vnd.ms-excel';
+    }
+
+    if (lowerName.endsWith('.csv')) {
+      return 'text/csv';
+    }
+
+    return 'application/octet-stream';
   }
 
   /**
@@ -237,16 +264,17 @@ export class OneDriveService {
   private async simpleUpload(
     buffer: Buffer, 
     fileName: string, 
-    folderId: string
+    folderId: string,
+    contentType: string
   ): Promise<OneDriveUploadResult> {
     try {
       const basePath = this.getBasePath();
       const response = await this.graphClient.put<OneDriveUploadResult>(
-        `${basePath}/items/${folderId}:/${encodeURIComponent(fileName)}:/content`,
+        `${basePath}/items/${folderId}:/${encodeURIComponent(fileName)}:/content?@microsoft.graph.conflictBehavior=replace`,
         buffer,
         {
           headers: {
-            'Content-Type': 'application/pdf',
+            'Content-Type': contentType,
           },
         }
       );
@@ -262,7 +290,8 @@ export class OneDriveService {
   private async largeFileUpload(
     buffer: Buffer, 
     fileName: string, 
-    folderId: string
+    folderId: string,
+    contentType: string
   ): Promise<OneDriveUploadResult> {
     try {
       // Create upload session
@@ -271,7 +300,7 @@ export class OneDriveService {
         `${basePath}/items/${folderId}:/${encodeURIComponent(fileName)}:/createUploadSession`,
         {
           item: {
-            '@microsoft.graph.conflictBehavior': 'rename',
+            '@microsoft.graph.conflictBehavior': 'replace',
             name: fileName,
           },
         }
@@ -292,6 +321,7 @@ export class OneDriveService {
           headers: {
             'Content-Length': chunkSize.toString(),
             'Content-Range': contentRange,
+            'Content-Type': contentType,
           },
         });
 
@@ -370,7 +400,8 @@ export class OneDriveService {
     const rootFolderName = isIgniteTenant ? igniteRootFolderName : apiRootFolderName;
 
     // Application folders go directly in root: /SLIM Subsidies/CompanyName-DD-MM-YYYY/
-    const folderPath = `${rootFolderName}/${applicationId}`;
+    const sanitizedApplicationId = this.sanitizeFileName(applicationId);
+    const folderPath = `${rootFolderName}/${sanitizedApplicationId}`;
 
     try {
       // Create folder structure recursively
@@ -394,15 +425,87 @@ export class OneDriveService {
 
     try {
       const basePath = this.getBasePath();
+      const sanitizedName = this.sanitizeFileName(newName);
       await this.graphClient.patch(
         `${basePath}/items/${folderId}`,
         {
-          name: newName
+          name: sanitizedName
         }
       );
     } catch (error) {
       throw new Error(`Failed to rename folder: ${this.formatError(error)}`);
     }
+  }
+
+  /**
+   * Retrieve drive item metadata by ID
+   */
+  async getDriveItem(itemId: string): Promise<OneDriveDriveItem> {
+    await this.authenticate();
+
+    try {
+      const basePath = this.getBasePath();
+      const response = await this.graphClient.get<OneDriveDriveItem>(
+        `${basePath}/items/${itemId}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to retrieve drive item: ${this.formatError(error)}`);
+    }
+  }
+
+  /**
+   * Ensure provided folderId belongs to expected application folder
+   */
+  async verifyApplicationFolderAccess(folderId: string, applicationId?: string): Promise<void> {
+    const item = await this.getDriveItem(folderId);
+
+    if (!item.folder) {
+      throw new Error('Provided folderId does not reference a folder');
+    }
+
+    if (applicationId) {
+      const expectedName = this.sanitizeFileName(applicationId);
+      if (item.name !== expectedName) {
+        console.warn('Application folder name does not match expected applicationId', {
+          expectedName,
+          actualName: item.name
+        });
+      }
+    }
+
+    const parentPathRaw = item.parentReference?.path;
+    if (!parentPathRaw) {
+      throw new Error('Unable to determine folder location for supplied folderId');
+    }
+
+    const parentPath = parentPathRaw.toLowerCase();
+    let decodedParentPath = parentPath;
+
+    try {
+      decodedParentPath = decodeURIComponent(parentPathRaw).toLowerCase();
+    } catch {
+      // Keep lowercase parent path if decoding fails
+    }
+
+    const allowedRoots = this.getRootFolderNames().map(name => name.toLowerCase());
+    const matchesRoot = allowedRoots.some(root => {
+      const loweredRoot = root.toLowerCase();
+      return parentPath.includes(`/${loweredRoot}`) || decodedParentPath.includes(`/${loweredRoot}`);
+    });
+
+    if (!matchesRoot) {
+      throw new Error('folderId is not located inside an application root folder');
+    }
+  }
+
+  /**
+   * Determine configured root folder names for application storage
+   */
+  private getRootFolderNames(): string[] {
+    const apiRootFolderName = process.env.ONEDRIVE_API_FOLDER_NAME || 'SLIM Subsidies';
+    const igniteRootFolderName = process.env.ONEDRIVE_IGNITE_FOLDER_NAME || `${apiRootFolderName} Ignite`;
+    return [apiRootFolderName, igniteRootFolderName];
   }
 
   /**
@@ -417,12 +520,13 @@ export class OneDriveService {
     await this.authenticate();
 
     const sanitizedFileName = this.sanitizeFileName(fileName);
+    const contentType = this.getContentType(fileName);
 
     // Use simple upload for files < 4MB, otherwise use upload session
     if (buffer.length < ONEDRIVE_CONFIG.MAX_FILE_SIZE) {
-      return this.simpleUpload(buffer, sanitizedFileName, folderId);
+      return this.simpleUpload(buffer, sanitizedFileName, folderId, contentType);
     } else {
-      return this.largeFileUpload(buffer, sanitizedFileName, folderId);
+      return this.largeFileUpload(buffer, sanitizedFileName, folderId, contentType);
     }
   }
 

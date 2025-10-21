@@ -122,6 +122,7 @@ export async function submitCompanyInfo(
     const response: SubmitCompanyInfoResponse = {
       success: true,
       folderId,
+      applicationId: companyInfo.applicationId,
       message: isUpdate ? 'Company info updated successfully' : 'Company info submitted successfully'
     };
 

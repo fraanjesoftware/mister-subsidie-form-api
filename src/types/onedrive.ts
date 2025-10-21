@@ -50,6 +50,20 @@ export interface OneDriveUploadSession {
   nextExpectedRanges: string[];
 }
 
+export interface OneDriveDriveItem {
+  id: string;
+  name: string;
+  folder?: {
+    childCount: number;
+  };
+  file?: Record<string, unknown>;
+  parentReference?: {
+    driveId?: string;
+    id?: string;
+    path?: string;
+  };
+}
+
 export interface DocumentMetadata {
   companyName: string;
   kvkNumber: string;
