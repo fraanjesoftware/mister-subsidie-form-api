@@ -3,6 +3,7 @@ import { CompanyInfo, SubmitCompanyInfoResponse } from '../types/application';
 import { OneDriveService } from '../services/onedriveService';
 import { ExcelService } from '../services/excelService';
 import { formatTimestamp } from '../utils/time';
+import { ONEDRIVE_CONFIG } from '../constants/onedrive';
 
 /**
  * Azure Function: Submit Company Info
@@ -78,9 +79,12 @@ export async function submitCompanyInfo(
 
     // Generate Excel file
     const excelBuffer = excelService.generateCompanyDataExcel(companyInfo);
-    const excelFileName = excelService.getCompanyDataFileName();
     const timestamp = formatTimestamp();
-    const archivalFileName = `bedrijfsinfo-${timestamp}.xlsx`;
+    const sanitizedCompany = (companyInfo.bedrijfsnaam || '').replace(ONEDRIVE_CONFIG.SANITIZE_REGEX, '_').trim();
+    const companyPrefix = sanitizedCompany ? `${sanitizedCompany} - ` : '';
+    const baseExcelFileName = excelService.getCompanyDataFileName();
+    const excelFileName = `${companyPrefix}${baseExcelFileName}`;
+    const archivalFileName = `${companyPrefix}bedrijfsinfo-${timestamp}.xlsx`;
 
     let folderId: string;
     let isUpdate = false;

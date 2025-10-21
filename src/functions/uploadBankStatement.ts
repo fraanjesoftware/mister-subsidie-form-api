@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { UploadBankStatementResponse } from '../types/application';
 import { OneDriveService } from '../services/onedriveService';
 import { formatTimestamp } from '../utils/time';
+import { ONEDRIVE_CONFIG } from '../constants/onedrive';
 
 /**
  * Azure Function: Upload Bank Statement
@@ -138,9 +139,7 @@ export async function uploadBankStatement(
 
     // Upload directly to the folder using folderId
     const timestamp = formatTimestamp();
-    const sanitizedCompany = onedriveService['sanitizeFileName']
-      ? (onedriveService as any).sanitizeFileName(bedrijfsnaam)
-      : bedrijfsnaam.replace(/[<>:"/\\|?*]/g, '_');
+    const sanitizedCompany = (bedrijfsnaam || '').replace(ONEDRIVE_CONFIG.SANITIZE_REGEX, '_').trim();
     const companyPrefix = sanitizedCompany ? `${sanitizedCompany} - ` : '';
     const storedFileName = `${companyPrefix}bankafschrift-${timestamp}.pdf`; // Append timestamp to retain history
     const uploadResult = await onedriveService.uploadToFolder(

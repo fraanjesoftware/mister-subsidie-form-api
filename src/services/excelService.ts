@@ -102,17 +102,7 @@ export class ExcelService {
    * Generate filename for company data Excel file
    * Format: bedrijfsinfo.xlsx (consistent naming)
    */
-  getCompanyDataFileName(companyName?: string): string {
-    const baseName = 'Bedrijfsinfo.xlsx';
-    if (!companyName) {
-      return baseName;
-    }
-
-    const sanitizedCompany = companyName.replace(/[<>:"/\\|?*]/g, '_').trim();
-    if (!sanitizedCompany) {
-      return baseName;
-    }
-
-    return `${sanitizedCompany} - ${baseName}`;
+  getCompanyDataFileName(): string {
+    return 'Bedrijfsinfo.xlsx';
   }
 }

@@ -229,8 +229,7 @@ export class OneDriveService {
         `${basePath}/items/${parentId}/children`,
         {
           params: {
-            '$select': 'id,name,folder',
-            '$filter': `folder ne null and name eq '${sanitizedName.replace(/'/g, "''")}'`
+            '$select': 'id,name,folder'
           }
         }
       );
