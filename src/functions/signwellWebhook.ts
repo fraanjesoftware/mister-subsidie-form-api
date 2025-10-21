@@ -223,11 +223,12 @@ export async function signwellWebhook(
 
                     context.log('Documents uploaded to application folder');
                   } catch (verificationError) {
-                    context.warn('Provided folderId failed verification, falling back to legacy structure', {
+                    context.warn('Application folder upload failed, falling back to legacy structure', {
                       folderId: resolvedFolderId,
                       error: verificationError instanceof Error ? verificationError.message : verificationError
                     });
                     resolvedFolderId = undefined;
+                    uploadResults = [];
                   }
                 }
 
