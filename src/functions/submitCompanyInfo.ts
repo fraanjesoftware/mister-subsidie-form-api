@@ -182,7 +182,6 @@ function validateCompanyInfo(data: CompanyInfo): string[] {
   if (!data.datum) errors.push('datum is required');
   if (!data.bedrijfsnaam) errors.push('bedrijfsnaam is required');
   if (!data.kvkNummer) errors.push('kvkNummer is required');
-  if (!data.btwId) errors.push('btwId is required');
   if (!data.adres) errors.push('adres is required');
   if (!data.postcode) errors.push('postcode is required');
   if (!data.plaats) errors.push('plaats is required');
